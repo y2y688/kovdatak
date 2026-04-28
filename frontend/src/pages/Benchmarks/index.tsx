@@ -12,7 +12,7 @@ export function BenchmarksPage() {
   const selected = sp.get('b') || null
   const [openBenchId, setOpenBenchId] = useUIState<string | null>('global:openBenchmark', null)
 
-  const { items, byId, loading, favorites, toggleFavorite } = useBenchmarkData()
+  const { items, byId, loading, favorites, toggleFavorite, refresh } = useBenchmarkData()
 
   // Sync URL and State
   useEffect(() => {
@@ -59,6 +59,7 @@ export function BenchmarksPage() {
       onToggleFav={toggleFavorite}
       onOpen={handleOpen}
       benchmarksById={byId}
+      onRefresh={refresh}
     />
   )
 }
@@ -68,6 +69,7 @@ function useBenchmarkData() {
   const [byId, setById] = useState<Record<string, Benchmark>>({})
   const [loading, setLoading] = useState<boolean>(true)
   const [favorites, setFavorites] = useState<string[]>([])
+  const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => {
     let isMounted = true
@@ -102,7 +104,9 @@ function useBenchmarkData() {
       })
 
     return () => { isMounted = false }
-  }, [])
+  }, [refreshKey])
+
+  const refresh = () => setRefreshKey(k => k + 1)
 
   const toggleFavorite = async (id: string) => {
     const next = favorites.includes(id) ? favorites.filter(x => x !== id) : [...favorites, id]
@@ -110,7 +114,7 @@ function useBenchmarkData() {
     try { await setFavoriteBenchmarks(next) } catch (e) { console.warn('setFavoriteBenchmarks failed', e) }
   }
 
-  return { items, byId, loading, favorites, toggleFavorite }
+  return { items, byId, loading, favorites, toggleFavorite, refresh }
 }
 
 export default BenchmarksPage

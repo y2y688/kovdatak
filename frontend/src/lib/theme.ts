@@ -1,14 +1,10 @@
 export const THEMES = [
-  { id: 'dark', label: '深色' },
-  { id: 'light', label: '浅色' },
-  { id: 'dracula', label: '德古拉' },
-  { id: 'gruvbox', label: 'Gruvbox' },
-  { id: 'gruvbox-light', label: 'Gruvbox 浅色' },
-  { id: 'nord', label: 'Nord' },
-  { id: 'ocean', label: '海洋' },
-  { id: 'solarized-dark', label: 'Solarized 深色' },
-  { id: 'solarized-light', label: 'Solarized 浅色' },
-  { id: 'midnight', label: '午夜' },
+  { id: 'dark', label: '黑蓝' },
+  { id: 'light', label: '白蓝' },
+  { id: 'dracula', label: '灰紫' },
+  { id: 'solarized-dark', label: '蓝调' },
+  { id: 'solarized-light', label: '米蓝' },
+  { id: 'midnight', label: '黑紫' },
 ] as const
 export type Theme = typeof THEMES[number]['id']
 

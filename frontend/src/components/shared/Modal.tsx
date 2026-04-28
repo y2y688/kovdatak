@@ -25,21 +25,22 @@ export function Modal({
   className = '',
 }: ModalProps) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
+
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') onCloseRef.current()
     }
     if (isOpen) {
       document.addEventListener('keydown', handleEsc)
       document.body.style.overflow = 'hidden'
-      // Focus the modal container for accessibility (Escape works immediately)
-      setTimeout(() => containerRef.current?.focus(), 0)
     }
     return () => {
       document.removeEventListener('keydown', handleEsc)
       document.body.style.overflow = 'unset'
     }
-  }, [isOpen, onClose])
+  }, [isOpen])
 
   if (!isOpen) return null
 

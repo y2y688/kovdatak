@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Input } from '../../../components/shared/Input';
 import { TraceViewer } from '../../../components/scenarios/TraceViewer';
 import { Loading } from '../../../components/shared/Loading';
-import { getScenarioTrace } from '../../../lib/internal';
+import { getScenarioTrace, getSettings, updateSettings } from '../../../lib/internal';
 import { decodeTraceData } from '../../../lib/trace';
 import { formatPct01, getDatePlayed } from '../../../lib/utils';
 import type { MousePoint, ScenarioRecord } from '../../../types/ipc';
@@ -9,6 +10,22 @@ import type { MousePoint, ScenarioRecord } from '../../../types/ipc';
 type MouseTraceTabProps = { item: ScenarioRecord; items?: ScenarioRecord[] }
 
 export function MouseTraceTab({ item, items }: MouseTraceTabProps) {
+  const [tracesDir, setTracesDir] = useState<string>('')
+  const [savedTracesDir, setSavedTracesDir] = useState<string>('')
+  const [tracesDirSaving, setTracesDirSaving] = useState<boolean>(false)
+
+  useEffect(() => {
+    getSettings().then(s => {
+      if (s && typeof (s as any).tracesDir === 'string') {
+        const v = String((s as any).tracesDir || '')
+        setTracesDir(v)
+        setSavedTracesDir(v)
+      }
+    }).catch(() => { })
+  }, [])
+
+  const normalizedTracesDir = tracesDir.trim()
+  const isTracesDirSaved = normalizedTracesDir.length > 0 && normalizedTracesDir === savedTracesDir.trim()
   const traceItems = useMemo(() => {
     const src = Array.isArray(items) && items.length ? [...items] : [item]
     src.sort((a, b) => Date.parse(getDatePlayed(b.stats)) - Date.parse(getDatePlayed(a.stats)))
@@ -74,6 +91,39 @@ export function MouseTraceTab({ item, items }: MouseTraceTabProps) {
 
   return (
     <div className="space-y-3">
+      <div className="p-3 rounded border border-primary bg-surface-2 text-sm">
+        <div className="font-medium mb-2">轨迹目录</div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Input
+            value={tracesDir}
+            onChange={e => setTracesDir(e.target.value)}
+            placeholder="例如：C:\\path\\to\\traces"
+            className="w-full"
+          />
+          <button
+            disabled={tracesDirSaving || !normalizedTracesDir || isTracesDirSaved}
+            onClick={async () => {
+              setTracesDirSaving(true)
+              try {
+                const cur: any = await getSettings().catch(() => ({}))
+                await updateSettings({ ...(cur || {}), tracesDir: normalizedTracesDir } as any)
+                const latest: any = await getSettings().catch(() => ({}))
+                const saved = String(latest?.tracesDir || normalizedTracesDir)
+                setTracesDir(saved)
+                setSavedTracesDir(saved)
+              } catch (e) {
+                console.warn('更新轨迹目录失败', e)
+              } finally {
+                setTracesDirSaving(false)
+              }
+            }}
+            className="px-3 py-2 rounded bg-surface-2 border border-primary text-sm hover:bg-surface-3 disabled:opacity-50"
+          >
+            {tracesDirSaving ? '保存中...' : isTracesDirSaved ? '已保存' : '保存'}
+          </button>
+        </div>
+      </div>
+
       <div className="p-2 rounded border border-primary bg-surface-2">
         <div className="text-sm font-medium text-primary mb-2">同场景记录列表</div>
         <div className="max-h-40 overflow-auto space-y-1">

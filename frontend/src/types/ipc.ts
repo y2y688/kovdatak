@@ -17,10 +17,33 @@ export interface ScenarioRecord {
   hasTrace?: boolean
 }
 
+export interface DifficultySubcategory {
+  subcategoryName: string
+  scenarioCount: number
+  color?: string
+}
+
+export interface DifficultyCategory {
+  categoryName: string
+  color?: string
+  subcategories: DifficultySubcategory[]
+}
+
 export interface BenchmarkDifficulty {
   difficultyName: string
   kovaaksBenchmarkId: number
   sharecode: string
+  rankColors?: Record<string, string>
+  categories?: DifficultyCategory[]
+}
+
+export interface CustomBenchmarkPayload {
+  benchmarkName: string
+  rankCalculation?: string
+  abbreviation: string
+  color: string
+  spreadsheetURL?: string
+  difficulties?: BenchmarkDifficulty[]
 }
 
 export interface Benchmark {

@@ -18,9 +18,9 @@ export function ScenariosPage() {
   const active = useMemo(() => scenarios.find(s => s.filePath === activeId) ?? scenarios[0] ?? null, [scenarios, activeId])
   const didInitFromUrl = useRef(false)
   const [watchPath, setWatchPath] = useState<string>('stats')
-  const [tracesDir, setTracesDir] = useState<string>('')
-  const [savedTracesDir, setSavedTracesDir] = useState<string>('')
-  const [tracesDirSaving, setTracesDirSaving] = useState<boolean>(false)
+  const [statsDir, setStatsDir] = useState<string>('')
+  const [savedStatsDir, setSavedStatsDir] = useState<string>('')
+  const [statsDirSaving, setStatsDirSaving] = useState<boolean>(false)
 
   // One-time URL init + fallback to newest item when current selection disappears.
   useEffect(() => {
@@ -42,13 +42,11 @@ export function ScenariosPage() {
   useEffect(() => {
     let off: (() => void) | null = null
     getSettings().then(s => {
-      if (s && typeof s.statsDir === 'string' && s.statsDir.trim().length > 0) {
-        setWatchPath(s.statsDir)
-      }
-      if (s && typeof (s as any).tracesDir === 'string') {
-        const v = String((s as any).tracesDir || '')
-        setTracesDir(v)
-        setSavedTracesDir(v)
+      if (s && typeof s.statsDir === 'string') {
+        const v = s.statsDir.trim()
+        if (v.length > 0) setWatchPath(v)
+        setStatsDir(v)
+        setSavedStatsDir(v)
       }
     }).catch(() => { /* ignore */ })
     try {
@@ -73,8 +71,8 @@ export function ScenariosPage() {
     return p.endsWith('/') ? p : p + '/'
   }, [watchPath])
 
-  const normalizedTracesDir = tracesDir.trim()
-  const isTracesDirSaved = normalizedTracesDir.length > 0 && normalizedTracesDir === savedTracesDir.trim()
+  const normalizedStatsDir = statsDir.trim()
+  const isStatsDirSaved = normalizedStatsDir.length > 0 && normalizedStatsDir === savedStatsDir.trim()
 
   type ScenarioGroup = {
     id: string
@@ -109,37 +107,39 @@ export function ScenariosPage() {
   return (
     <div className="space-y-4 h-full flex flex-col p-4">
       <div className="p-3 rounded border border-primary bg-surface-2 text-sm">
-        <div className="font-medium mb-2">轨迹目录</div>
+        <div className="font-medium mb-2">统计目录</div>
         <div className="flex flex-wrap items-center gap-2">
           <Input
-            value={tracesDir}
-            onChange={e => setTracesDir(e.target.value)}
-            placeholder="例如：C:\\path\\to\\traces"
+            value={statsDir}
+            onChange={e => setStatsDir(e.target.value)}
+            placeholder="例如:D:\steam\steamapps\common\FPSAimTrainer\FPSAimTrainer\stats"
             className="w-[520px] max-w-full"
           />
           <button
-            disabled={tracesDirSaving || !normalizedTracesDir || isTracesDirSaved}
+            disabled={statsDirSaving || !normalizedStatsDir || isStatsDirSaved}
             onClick={async () => {
-              setTracesDirSaving(true)
+              setStatsDirSaving(true)
               try {
                 const cur: any = await getSettings().catch(() => ({}))
-                await updateSettings({ ...(cur || {}), tracesDir: normalizedTracesDir } as any)
+                await updateSettings({ ...(cur || {}), statsDir: normalizedStatsDir } as any)
                 const latest: any = await getSettings().catch(() => ({}))
-                const saved = String(latest?.tracesDir || normalizedTracesDir)
-                setTracesDir(saved)
-                setSavedTracesDir(saved)
+                const saved = String(latest?.statsDir || normalizedStatsDir)
+                setStatsDir(saved)
+                setSavedStatsDir(saved)
+                if (saved.trim().length > 0) setWatchPath(saved)
               } catch (e) {
-                console.warn('更新轨迹目录失败', e)
+                console.warn('更新统计目录失败', e)
               } finally {
-                setTracesDirSaving(false)
+                setStatsDirSaving(false)
               }
             }}
             className="px-3 py-2 rounded bg-surface-2 border border-primary text-sm hover:bg-surface-3 disabled:opacity-50"
           >
-            {tracesDirSaving ? '保存中...' : isTracesDirSaved ? '已保存' : '保存'}
+            {statsDirSaving ? '保存中...' : isStatsDirSaved ? '已保存' : '保存'}
           </button>
         </div>
       </div>
+
       <div className="flex-1 min-h-0">
         <ListDetail
           id="scenarios:recent"

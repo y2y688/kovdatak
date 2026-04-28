@@ -9,6 +9,13 @@ export interface Session {
   notes?: string
 }
 
+export interface CustomPlaylist {
+  id: string
+  name: string
+  sharecode: string
+  createdAt: string
+}
+
 export type BenchmarkListItem = {
   id: string
   title: string

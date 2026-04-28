@@ -59,6 +59,9 @@ if react_dir.exists():
     assets_dir = (react_dir / "assets").resolve()
     if assets_dir.exists():
         app.mount("/assets", StaticFiles(directory=str(assets_dir), html=False), name="assets")
+    images_dir = (react_dir / "images").resolve()
+    if images_dir.exists():
+        app.mount("/images", StaticFiles(directory=str(images_dir), html=False), name="images")
 
 pipeline = StatsPipeline(
     stats_dir=cfg.stats_dir,
@@ -184,6 +187,30 @@ async def api_benchmark_favorites_put(payload: Dict[str, Any]):
     if not isinstance(ids, list):
         raise HTTPException(status_code=400, detail="favorites must be a list")
     favorites.save([str(x) for x in ids])
+    return {"ok": True}
+
+
+@app.post("/api/benchmarks/custom")
+async def api_create_custom_benchmark(payload: Dict[str, Any]):
+    if not isinstance(payload, dict) or not payload.get("benchmarkName"):
+        raise HTTPException(status_code=400, detail="benchmarkName is required")
+    result = benchmarks.create_custom_benchmark(payload)
+    return {"benchmark": result}
+
+
+@app.put("/api/benchmarks/custom/{cid}")
+async def api_update_custom_benchmark(cid: str, payload: Dict[str, Any]):
+    result = benchmarks.update_custom_benchmark(cid, payload)
+    if result is None:
+        raise HTTPException(status_code=404, detail="custom benchmark not found")
+    return {"benchmark": result}
+
+
+@app.delete("/api/benchmarks/custom/{cid}")
+async def api_delete_custom_benchmark(cid: str):
+    ok = benchmarks.delete_custom_benchmark(cid)
+    if not ok:
+        raise HTTPException(status_code=404, detail="custom benchmark not found")
     return {"ok": True}
 
 

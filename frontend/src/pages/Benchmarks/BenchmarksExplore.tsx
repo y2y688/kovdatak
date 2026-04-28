@@ -1,15 +1,17 @@
-import { ChevronDown, Search, Star } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { ChevronDown, List, Plus, Search, Star } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { BenchmarkCard } from '../../components/benchmarks/BenchmarkCard';
+import { PlaylistCard } from '../../components/benchmarks/PlaylistCard';
 import { Dropdown } from '../../components/shared/Dropdown';
 import { Input } from '../../components/shared/Input';
 import { usePageState } from '../../hooks/usePageState';
 import { useUIState } from '../../hooks/useUIState';
 import { DEFAULT_BENCHMARK_CATEGORY } from '../../lib/constants';
-import { getSettings, updateSettings } from '../../lib/internal';
+import { getCustomPlaylists, getSettings, launchPlaylist, removeCustomPlaylist, updateSettings } from '../../lib/internal';
 import { getBenchmarkCategory } from '../../lib/utils';
-import type { BenchmarkListItem } from '../../types/domain';
+import type { BenchmarkListItem, CustomPlaylist } from '../../types/domain';
 import type { Benchmark } from '../../types/ipc';
+import { CreateBenchmarkModal } from '../../components/benchmarks/CreateBenchmarkModal';
 
 function useBenchmarkList(items: BenchmarkListItem[], favorites: string[]) {
   const [query, setQuery] = usePageState<string>('explore:query', '')
@@ -73,13 +75,14 @@ function useBenchmarkList(items: BenchmarkListItem[], favorites: string[]) {
   }
 }
 
-export function BenchmarksExplore({ items, favorites, loading, onToggleFav, onOpen, benchmarksById }: {
+export function BenchmarksExplore({ items, favorites, loading, onToggleFav, onOpen, benchmarksById, onRefresh }: {
   items: BenchmarkListItem[];
   favorites: string[];
   loading: boolean;
   onToggleFav: (id: string) => void;
   onOpen: (id: string) => void;
   benchmarksById: Record<string, Benchmark>;
+  onRefresh?: () => void;
 }) {
   const {
     query, setQuery,
@@ -95,6 +98,15 @@ export function BenchmarksExplore({ items, favorites, loading, onToggleFav, onOp
   const [steamDir, setSteamDir] = useState<string>('')
   const [savedSteamDir, setSavedSteamDir] = useState<string>('')
   const [steamDirSaving, setSteamDirSaving] = useState<boolean>(false)
+  const [showCreate, setShowCreate] = useState(false)
+  const [editingPlaylist, setEditingPlaylist] = useState<CustomPlaylist | null>(null)
+  const [playlists, setPlaylists] = useState<CustomPlaylist[]>([])
+
+  const loadPlaylists = useCallback(() => {
+    setPlaylists(getCustomPlaylists())
+  }, [])
+
+  useEffect(() => { loadPlaylists() }, [loadPlaylists])
 
   useEffect(() => {
     getSettings()
@@ -109,8 +121,29 @@ export function BenchmarksExplore({ items, favorites, loading, onToggleFav, onOp
   const normalizedSteamDir = steamDir.trim()
   const isSteamDirSaved = normalizedSteamDir.length > 0 && normalizedSteamDir === savedSteamDir.trim()
 
+  const handleLaunchPlaylist = (sharecode: string) => {
+    launchPlaylist(sharecode)
+  }
+
+  const handleDeletePlaylist = (id: string) => {
+    removeCustomPlaylist(id)
+    loadPlaylists()
+  }
+
+  const handleEditPlaylist = (playlist: CustomPlaylist) => {
+    setEditingPlaylist(playlist)
+    setShowCreate(true)
+  }
+
+  const closeModal = () => {
+    setShowCreate(false)
+    setEditingPlaylist(null)
+  }
+
+  const hasPlaylists = playlists.length > 0
+
   return (
-    <div className="space-y-4 h-full p-4 overflow-auto">
+    <><div className="space-y-4 h-full p-4 overflow-auto">
       <div className="p-3 rounded border border-primary bg-surface-2 text-sm">
         <div className="font-medium mb-2">请填写steam安装目录</div>
         <div className="flex flex-wrap items-center gap-2">
@@ -146,8 +179,31 @@ export function BenchmarksExplore({ items, favorites, loading, onToggleFav, onOp
           用于自动读取 <code className="font-mono">config/loginusers.vdf</code> 并获取 SteamID，从而拉取基准测试排名。
         </div>
       </div>
+
+      {/* ── Custom Playlists ── */}
+      {hasPlaylists && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-sm font-medium text-secondary mt-2 mb-2 select-none">
+            <List size={16} />
+            <span>自定义播放列表 <span className="text-xs opacity-50">({playlists.length})</span></span>
+            <div className="h-px bg-primary/10 flex-1" />
+          </div>
+          <div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(320px,1fr))]">
+            {playlists.map(p => (
+              <PlaylistCard
+                key={p.id}
+                playlist={p}
+                onLaunch={handleLaunchPlaylist}
+                onEdit={handleEditPlaylist}
+                onDelete={handleDeletePlaylist}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="text-lg font-medium">基准测试 - 浏览</div>
+        <div className="text-lg font-medium">基准测试</div>
         <div className="flex flex-wrap items-center gap-2">
           <Input
             value={query}
@@ -168,6 +224,14 @@ export function BenchmarksExplore({ items, favorites, loading, onToggleFav, onOp
               fill={showFavOnly ? 'currentColor' : 'none'}
             />
             {showFavOnly ? '收藏' : '全部'}
+          </button>
+          <button
+            onClick={() => setShowCreate(true)}
+            className="px-3 py-2 rounded border text-sm flex items-center gap-2 bg-accent/20 border-accent text-accent hover:bg-accent/30 transition-colors"
+            title="通过 Sharecode 启动播放列表"
+          >
+            <Plus size={16} strokeWidth={1.5} />
+            播放列表
           </button>
         </div>
       </div>
@@ -214,5 +278,16 @@ export function BenchmarksExplore({ items, favorites, loading, onToggleFav, onOp
         )}
       </div>
     </div>
+      <CreateBenchmarkModal
+        isOpen={showCreate}
+        onClose={closeModal}
+        onCreated={() => {
+          closeModal()
+          loadPlaylists()
+          onRefresh?.()
+        }}
+        editPlaylist={editingPlaylist}
+      />
+    </>
   )
 }

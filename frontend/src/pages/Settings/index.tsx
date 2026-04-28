@@ -6,7 +6,7 @@ import { Input } from '../../components/shared/Input';
 import { Loading } from '../../components/shared/Loading';
 import { useStore } from '../../hooks/useStore';
 import { getRecentScenarios, getSettings, updateSettings } from '../../lib/internal';
-import { FONTS, setFont, setTheme, THEMES, type Font, type Theme } from '../../lib/theme';
+import { FONTS, getSavedFont, getSavedTheme, setFont, setTheme, THEMES, type Font, type Theme } from '../../lib/theme';
 import type { Settings } from '../../types/ipc';
 
 export function SettingsPage() {
@@ -18,7 +18,7 @@ export function SettingsPage() {
 
   useEffect(() => {
     getSettings().then(s => {
-      setSettings(s)
+      setSettings({ ...s, theme: getSavedTheme(), font: getSavedFont() })
     }).catch(() => { })
   }, [])
 
@@ -57,14 +57,6 @@ export function SettingsPage() {
         <section className="space-y-3">
           <h3 className="text-sm font-semibold text-secondary uppercase tracking-wider">常规</h3>
           <div className="space-y-3 p-3 rounded border border-primary bg-surface-2">
-            <Field label="统计目录">
-              <Input
-                value={String(settings.statsDir || '')}
-                onChange={e => updateField('statsDir', e.target.value)}
-                fullWidth
-                placeholder="例如：D:\\KovaaKs\\FPSAimTrainer\\stats"
-              />
-            </Field>
             <Field label="启用鼠标跟踪 (Windows)">
               <Dropdown
                 value={settings.mouseTrackingEnabled ? 'on' : 'off'}
