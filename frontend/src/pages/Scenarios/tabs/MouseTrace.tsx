@@ -122,6 +122,7 @@ export function MouseTraceTab({ item, items }: MouseTraceTabProps) {
             {tracesDirSaving ? '保存中...' : isTracesDirSaved ? '已保存' : '保存'}
           </button>
         </div>
+        <div className="text-xs text-secondary mt-2">用于保存和读取轨迹文件</div>
       </div>
 
       <div className="p-2 rounded border border-primary bg-surface-2">

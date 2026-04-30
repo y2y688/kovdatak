@@ -4,6 +4,12 @@ import { getBenchmarkProgress, getBenchmarks } from '../lib/internal'
 import type { Benchmark, BenchmarkProgress } from '../types/ipc'
 import { useUIState } from './useUIState'
 
+function normalizeError(e: unknown): string {
+  const msg = e instanceof Error ? e.message : String(e ?? '')
+  if (msg.startsWith('400')) return '请填写正确Steam安装地址'
+  return msg
+}
+
 export function useOpenedBenchmarkProgress(input?: { id?: string | null; bench?: Benchmark | null }) {
   const resolvedId = input?.id ?? null
   const [benchDifficultyIdx, setBenchDifficultyIdx] = useUIState<number>(`benchmark:${resolvedId ?? ''}:difficultyIdx`, 0)
@@ -67,7 +73,7 @@ export function useOpenedBenchmarkProgress(input?: { id?: string | null; bench?:
       } catch (e) {
         if (isCancelled()) return
         setProgress(prev => {
-          if (!prev) setError(e instanceof Error ? e.message : String(e))
+          if (!prev) setError(normalizeError(e))
           return prev
         })
         setLoading(false)
@@ -95,7 +101,7 @@ export function useOpenedBenchmarkProgress(input?: { id?: string | null; bench?:
       if (cancelled) return
       getBenchmarkProgress(did)
         .then((data) => { if (!cancelled) setProgress(data) })
-        .catch((e) => { if (!cancelled) setError(String(e?.message || e)) })
+        .catch((e) => { if (!cancelled) setError(normalizeError(e)) })
     }
 
     const trigger = () => {

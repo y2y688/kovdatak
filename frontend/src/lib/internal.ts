@@ -1,4 +1,4 @@
-import type { Benchmark, BenchmarkProgress, CustomBenchmarkPayload, KovaaksLastScore, ScenarioRecord, Settings } from '../types/ipc'
+import type { Benchmark, BenchmarkProgress, CustomBenchmarkPayload, KovaaksLastScore, ScenarioRecord, ScenarioTopScore, Settings } from '../types/ipc'
 import type { CustomPlaylist } from '../types/domain'
 
 async function apiJSON(url: string, init?: RequestInit): Promise<any> {
@@ -204,6 +204,11 @@ export async function launchPlaylist(sharecode: string): Promise<void> {
   }
 }
 
+export async function getScenarioTopScore(scenarioName: string): Promise<ScenarioTopScore> {
+  const p = new URLSearchParams({ scenario: scenarioName })
+  return apiJSON(`/api/scenario/top-score?${p}`) as Promise<ScenarioTopScore>
+}
+
 export async function getScenarioTrace(fileOrTraceId: string): Promise<string> {
   const fileName = String(fileOrTraceId || '').trim()
   const base = fileName
@@ -252,35 +257,29 @@ export async function getScenarioTrace(fileOrTraceId: string): Promise<string> {
   return btoa(s)
 }
 
-const LS_CUSTOM_PLAYLISTS = 'kovdatak:customPlaylists'
-
-export function getCustomPlaylists(): CustomPlaylist[] {
-  return readJSON<CustomPlaylist[]>(LS_CUSTOM_PLAYLISTS, [])
+export async function getCustomPlaylists(): Promise<CustomPlaylist[]> {
+  const data = await apiJSON('/api/playlists/custom')
+  return Array.isArray(data?.playlists) ? data.playlists as CustomPlaylist[] : []
 }
 
-export function addCustomPlaylist(name: string, sharecode: string): CustomPlaylist {
-  const all = getCustomPlaylists()
-  const playlist: CustomPlaylist = {
-    id: `playlist-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    name: name.trim(),
-    sharecode: sharecode.trim(),
-    createdAt: new Date().toISOString(),
-  }
-  all.push(playlist)
-  writeJSON(LS_CUSTOM_PLAYLISTS, all)
-  return playlist
+export async function addCustomPlaylist(name: string, sharecode: string): Promise<CustomPlaylist> {
+  const data = await apiJSON('/api/playlists/custom', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, sharecode }),
+  })
+  return data?.playlist as CustomPlaylist
 }
 
-export function removeCustomPlaylist(id: string): void {
-  const all = getCustomPlaylists().filter(p => p.id !== id)
-  writeJSON(LS_CUSTOM_PLAYLISTS, all)
+export async function removeCustomPlaylist(id: string): Promise<void> {
+  await apiJSON(`/api/playlists/custom/${encodeURIComponent(id)}`, { method: 'DELETE' })
 }
 
-export function updateCustomPlaylist(id: string, name: string, sharecode: string): CustomPlaylist | null {
-  const all = getCustomPlaylists()
-  const idx = all.findIndex(p => p.id === id)
-  if (idx === -1) return null
-  all[idx] = { ...all[idx], name: name.trim(), sharecode: sharecode.trim() }
-  writeJSON(LS_CUSTOM_PLAYLISTS, all)
-  return all[idx]
+export async function updateCustomPlaylist(id: string, name: string, sharecode: string): Promise<CustomPlaylist | null> {
+  const data = await apiJSON(`/api/playlists/custom/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, sharecode }),
+  })
+  return (data?.playlist as CustomPlaylist) || null
 }

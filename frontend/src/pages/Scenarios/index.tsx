@@ -6,9 +6,9 @@ import { ListDetail } from '../../components/shared/ListDetail';
 import { usePageState } from '../../hooks/usePageState';
 import { useStore } from '../../hooks/useStore';
 import { useUIState } from '../../hooks/useUIState';
-import { getSettings, launchScenario, updateSettings } from '../../lib/internal';
+import { getScenarioTopScore, getSettings, launchScenario, updateSettings } from '../../lib/internal';
 import { formatPct01, getDatePlayed, getScenarioName } from '../../lib/utils';
-import type { ScenarioRecord } from '../../types/ipc';
+import type { ScenarioRecord, ScenarioTopScore } from '../../types/ipc';
 import { ScenarioScoreAccHistoryChart } from '../../components/scenarios/ScenarioScoreAccHistoryChart';
 import { MouseTraceTab } from './tabs/MouseTrace';
 
@@ -138,6 +138,7 @@ export function ScenariosPage() {
             {statsDirSaving ? '保存中...' : isStatsDirSaved ? '已保存' : '保存'}
           </button>
         </div>
+        <div className="text-xs text-secondary mt-2">用于获取场景csv记录</div>
       </div>
 
       <div className="flex-1 min-h-0">
@@ -196,15 +197,75 @@ export function ScenariosPage() {
 
 function ScenarioDetail({ item }: { item: ScenarioRecord | null }) {
   const allScenarios = useStore(s => s.scenarios)
-  if (!item) return <div className="p-8 text-center text-secondary">选择一个场景查看详情</div>
+  const [topScore, setTopScore] = useState<ScenarioTopScore | null>(null)
+  const [topLoading, setTopLoading] = useState(false)
+
+  const scenarioName = useMemo(() => {
+    if (!item) return ''
+    return getScenarioName(item)
+  }, [item])
 
   const groupItems = useMemo(() => {
+    if (!item) return []
     const name = getScenarioName(item)
     return allScenarios.filter(s => getScenarioName(s) === name)
   }, [allScenarios, item])
+
+  const bestScore = useMemo(() => {
+    let best = 0
+    for (const r of groupItems) {
+      const s = Number(r.stats?.Score || 0)
+      if (s > best) best = s
+    }
+    return best
+  }, [groupItems])
+
+  useEffect(() => {
+    if (!scenarioName) { setTopScore(null); return }
+    let cancelled = false
+    setTopLoading(true)
+    getScenarioTopScore(scenarioName)
+      .then(d => { if (!cancelled) setTopScore(d) })
+      .catch(() => { if (!cancelled) setTopScore(null) })
+      .finally(() => { if (!cancelled) setTopLoading(false) })
+    return () => { cancelled = true }
+  }, [scenarioName])
+
+  if (!item) return <div className="p-8 text-center text-secondary">选择一个场景查看详情</div>
+
+  const topValue = topScore?.top_score
+  const pct = topValue && topValue > 0 ? Math.min((bestScore / topValue) * 100, 100) : 0
+
   return (
     <div className="space-y-3">
       <ScenarioScoreAccHistoryChart items={groupItems} />
+      <div className="p-2 rounded border border-primary bg-surface-2 text-sm space-y-2">
+        <div className="flex items-center gap-2">
+          <span className="text-secondary">世界第一名</span>
+          {topLoading ? (
+            <span className="text-secondary">正在加载...</span>
+          ) : topValue != null ? (
+            <span className="text-primary font-medium">{topValue.toLocaleString()}</span>
+          ) : (
+            <span className="text-secondary">暂无数据</span>
+          )}
+        </div>
+        {topValue != null && (
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-xs">
+              <span className="text-secondary">你的最高</span>
+              <span className="text-primary">{bestScore.toLocaleString()}</span>
+              <span className="text-secondary">({pct.toFixed(1)}%)</span>
+            </div>
+            <div className="w-full h-2 rounded bg-surface-3 overflow-hidden">
+              <div
+                className="h-full rounded bg-accent transition-all duration-300"
+                style={{ width: `${Math.max(pct, 2)}%` }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
       <MouseTraceTab item={item} items={groupItems} />
     </div>
   )

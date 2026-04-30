@@ -48,10 +48,10 @@ export function CreateBenchmarkModal({ isOpen, onClose, onCreated, editPlaylist 
     try {
       if (isEditing && editPlaylist) {
         const { updateCustomPlaylist } = await import('../../lib/internal')
-        updateCustomPlaylist(editPlaylist.id, trimmedName, trimmedSc)
+        await updateCustomPlaylist(editPlaylist.id, trimmedName, trimmedSc)
       } else {
         const { addCustomPlaylist } = await import('../../lib/internal')
-        addCustomPlaylist(trimmedName, trimmedSc)
+        await addCustomPlaylist(trimmedName, trimmedSc)
       }
       resetForm()
       onCreated()
@@ -111,8 +111,8 @@ export function CreateBenchmarkModal({ isOpen, onClose, onCreated, editPlaylist 
         </div>
       </div>
 
-      <Modal isOpen={showHelp} onClose={() => setShowHelp(false)} title="如何获取 Sharecode" width="520px" height="auto">
-        <div className="p-4 space-y-6">
+      <Modal isOpen={showHelp} onClose={() => setShowHelp(false)} title="如何获取 Sharecode" width="520px" height="80vh">
+        <div className="p-4 space-y-6 overflow-y-auto h-full">
           <div className="space-y-2">
             <div className="text-sm font-medium text-accent">方法一：官网查找</div>
             <p className="text-xs text-secondary">

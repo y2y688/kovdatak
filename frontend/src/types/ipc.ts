@@ -126,6 +126,12 @@ export interface KovaaksScoreAttributes {
   challengeStart: string
 }
 
+export interface ScenarioTopScore {
+  scenario_name: string
+  leaderboard_id: number | null
+  top_score: number | null
+}
+
 export interface KovaaksLastScore {
   id: string
   type: string

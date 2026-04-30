@@ -11,9 +11,12 @@ from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+import json
+import time
+
 from .config import assets_root, data_root, load_or_create_config, save_config
 from .stats_watcher import StatsPipeline
-from .benchmarks_service import BenchmarksService
+from .benchmarks_service import BenchmarksService, get_scenario_info
 from .favorites_store import FavoritesStore
 from .trace_store import TraceStore
 
@@ -77,6 +80,21 @@ benchmarks = BenchmarksService(
     steam_id_override=getattr(cfg, "steam_id_override", ""),
 )
 favorites = FavoritesStore(str(data_root() / "data" / "favorite_benchmarks.json"))
+
+PLAYLISTS_PATH = (data_root() / "data" / "custom_playlists.json")
+
+def _load_playlists() -> list:
+    try:
+        if not PLAYLISTS_PATH.exists():
+            return []
+        data = json.loads(PLAYLISTS_PATH.read_text(encoding="utf-8"))
+        return data if isinstance(data, list) else []
+    except Exception:
+        return []
+
+def _save_playlists(pl: list) -> None:
+    PLAYLISTS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    PLAYLISTS_PATH.write_text(json.dumps(pl, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 @app.on_event("startup")
@@ -251,6 +269,56 @@ async def api_benchmark_progresses_refresh():
     return data
 
 
+@app.get("/api/playlists/custom")
+async def api_get_custom_playlists():
+    return {"playlists": _load_playlists()}
+
+
+@app.post("/api/playlists/custom")
+async def api_add_custom_playlist(payload: Dict[str, Any]):
+    name = str((payload or {}).get("name") or "").strip()
+    sharecode = str((payload or {}).get("sharecode") or "").strip()
+    if not name or not sharecode:
+        raise HTTPException(status_code=400, detail="name and sharecode are required")
+    pl = _load_playlists()
+    entry = {
+        "id": f"playlist-{int(time.time() * 1000)}-{os.urandom(4).hex()}",
+        "name": name,
+        "sharecode": sharecode,
+        "createdAt": time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime()),
+    }
+    pl.append(entry)
+    _save_playlists(pl)
+    return {"playlist": entry}
+
+
+@app.put("/api/playlists/custom/{pid}")
+async def api_update_custom_playlist(pid: str, payload: Dict[str, Any]):
+    pl = _load_playlists()
+    for i, p in enumerate(pl):
+        if p.get("id") == pid:
+            name = str((payload or {}).get("name") or "").strip()
+            sharecode = str((payload or {}).get("sharecode") or "").strip()
+            if name:
+                p["name"] = name
+            if sharecode:
+                p["sharecode"] = sharecode
+            pl[i] = p
+            _save_playlists(pl)
+            return {"playlist": p}
+    raise HTTPException(status_code=404, detail="playlist not found")
+
+
+@app.delete("/api/playlists/custom/{pid}")
+async def api_delete_custom_playlist(pid: str):
+    pl = _load_playlists()
+    filtered = [p for p in pl if p.get("id") != pid]
+    if len(filtered) == len(pl):
+        raise HTTPException(status_code=404, detail="playlist not found")
+    _save_playlists(filtered)
+    return {"ok": True}
+
+
 @app.get("/api/records")
 async def get_records(limit: int = 200):
     # 直接扫描stats目录获取所有CSV文件
@@ -266,6 +334,19 @@ async def get_records(limit: int = 200):
     # 按时间从新到旧排序，返回最近的limit条
     records.sort(key=lambda r: r.date_played, reverse=True)
     return {"records": [r.to_jsonable() for r in records[:limit]]}
+
+
+@app.get("/api/scenario/top-score")
+async def api_scenario_top_score(scenario: str):
+    if not scenario or not scenario.strip():
+        raise HTTPException(status_code=400, detail="scenario is required")
+    scenario_name = scenario.strip()
+    info = get_scenario_info(scenario_name)
+    return {
+        "scenario_name": scenario_name,
+        "leaderboard_id": info.get("leaderboardId") if info else None,
+        "top_score": info.get("topScore") if info else None,
+    }
 
 
 @app.get("/api/traces/{trace_id}")

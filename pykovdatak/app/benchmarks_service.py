@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import math
-import time
 import urllib.parse
 import urllib.request
 import os
@@ -10,38 +9,17 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-import requests
-
 from .config import data_root
 from .steam_loginusers import parse_most_recent_user
 
 
 # Kovaak API endpoints
 SCENARIO_SEARCH_URL = "https://kovaaks.com/webapp-backend/scenario/popular?page=%d&max=%d&scenarioNameSearch=%s"
-SCENARIO_GLOBAL_LEADERBOARD_URL = "https://kovaaks.com/webapp-backend/leaderboard/scores/global?leaderboardId=%d&page=%d&max=%d"
-
-
-def get_scenario_total_plays(scenario_name: str) -> int:
-    """
-    Get total plays (total players who played) for a specific scenario.
-    Returns 0 if scenario not found.
-    """
-    page = 0
-    per_page = 10
-    url = SCENARIO_SEARCH_URL % (page, per_page, urllib.parse.quote(scenario_name))
-    req = urllib.request.Request(url, headers={"User-Agent": "pykovdatak"})
-    with urllib.request.urlopen(req, timeout=10) as resp:
-        data = json.loads(resp.read().decode("utf-8"))
-
-    for entry in data.get("data", []):
-        if entry.get("scenarioName") == scenario_name:
-            return int(entry.get("counts", {}).get("plays") or 0)
-    return 0
 
 
 def get_scenario_info(scenario_name: str) -> Optional[Dict[str, Any]]:
     """
-    Get scenario info including leaderboardId and total entries (players with rank).
+    Get scenario info including leaderboardId, total entries, and top score.
     Returns None if scenario not found.
     """
     page = 0
@@ -53,69 +31,14 @@ def get_scenario_info(scenario_name: str) -> Optional[Dict[str, Any]]:
 
     for entry in data.get("data", []):
         if entry.get("scenarioName") == scenario_name:
+            ts = entry.get("topScore") or {}
             return {
                 "leaderboardId": int(entry.get("leaderboardId") or 0),
                 "totalPlays": int(entry.get("counts", {}).get("plays") or 0),
                 "totalEntries": int(entry.get("counts", {}).get("entries") or 0),
+                "topScore": float(ts.get("score") or 0) if ts.get("score") is not None else None,
             }
     return None
-
-
-import requests
-
-
-def _fetch_url(url: str) -> Optional[Dict[str, Any]]:
-    """Fetch JSON from URL with retry."""
-    for _ in range(3):
-        try:
-            resp = requests.get(url, headers={"User-Agent": "pykovdatak"}, timeout=10)
-            if resp.status_code == 200:
-                return resp.json()
-            if resp.status_code == 503:
-                time.sleep(0.5)  # Wait and retry
-                continue
-            break
-        except Exception:
-            time.sleep(0.5)
-    return None
-
-
-def get_scenario_world_rank(scenario_name: str, steam_id: str) -> Tuple[Optional[int], int]:
-    """
-    Get player's world rank for a specific scenario and total players in leaderboard.
-    Returns (rank, total_players) or (None, 0) if not found or error.
-    """
-    info = get_scenario_info(scenario_name)
-    if not info or not info.get("leaderboardId"):
-        return None, 0
-
-    leaderboard_id = info["leaderboardId"]
-
-    # First, get total count
-    url = SCENARIO_GLOBAL_LEADERBOARD_URL % (leaderboard_id, 0, 1)
-    total = 0
-    data = _fetch_url(url)
-    if data:
-        total = int(data.get("total") or 0)
-
-    if total == 0:
-        return None, 0
-
-    # Fetch first page to find player
-    try:
-        url = SCENARIO_GLOBAL_LEADERBOARD_URL % (leaderboard_id, 0, 100)
-        data = _fetch_url(url)
-        if data:
-            for entry in data.get("data", []):
-                if str(entry.get("steamId")) == str(steam_id):
-                    return int(entry.get("rank") or 0), total
-
-        # Player not found in first 100, but return total anyway
-        return None, total
-    except Exception:
-        pass
-
-    return None, total if total > 0 else 0
 
 
 KOVAAKS_PLAYER_PROGRESS_URL = (
@@ -336,4 +259,3 @@ class BenchmarksService:
             "ranks": _merge_rank_defs(ranks, diff),
             "categories": _group_scenarios_by_meta(scenarios, diff),
         }
-

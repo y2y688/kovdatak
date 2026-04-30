@@ -102,8 +102,9 @@ export function BenchmarksExplore({ items, favorites, loading, onToggleFav, onOp
   const [editingPlaylist, setEditingPlaylist] = useState<CustomPlaylist | null>(null)
   const [playlists, setPlaylists] = useState<CustomPlaylist[]>([])
 
-  const loadPlaylists = useCallback(() => {
-    setPlaylists(getCustomPlaylists())
+  const loadPlaylists = useCallback(async () => {
+    const data = await getCustomPlaylists()
+    setPlaylists(data)
   }, [])
 
   useEffect(() => { loadPlaylists() }, [loadPlaylists])
@@ -125,8 +126,8 @@ export function BenchmarksExplore({ items, favorites, loading, onToggleFav, onOp
     launchPlaylist(sharecode)
   }
 
-  const handleDeletePlaylist = (id: string) => {
-    removeCustomPlaylist(id)
+  const handleDeletePlaylist = async (id: string) => {
+    await removeCustomPlaylist(id)
     loadPlaylists()
   }
 
@@ -150,7 +151,7 @@ export function BenchmarksExplore({ items, favorites, loading, onToggleFav, onOp
           <Input
             value={steamDir}
             onChange={e => setSteamDir(e.target.value)}
-            placeholder="例如：C:\\Program Files (x86)\\Steam 或 D:\\steam"
+            placeholder="例如:D:\steam"
             className="w-[520px] max-w-full"
           />
           <button
