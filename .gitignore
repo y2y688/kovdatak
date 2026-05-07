@@ -1,7 +1,8 @@
 build/
 
 node_modules
-dist
+dist/*
+!dist/Kovdatak
 
 .env
 
