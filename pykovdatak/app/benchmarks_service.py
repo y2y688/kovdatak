@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from .config import data_root
+from .config import data_root, assets_root
 from .steam_loginusers import parse_most_recent_user
 
 
@@ -54,8 +54,12 @@ def _read_json(path: Path) -> Any:
 
 
 def _benchmarks_data_path() -> Path:
-    # Keep benchmark definitions in pykovdatak data directory.
-    return (data_root() / "data" / "benchmarks_data.json").resolve()
+    # Bundled inside the exe (_internal/app/data/) or pykovdatak/app/data/ (dev).
+    bundled = (assets_root() / "app" / "data" / "default_benchmarks.json").resolve()
+    if bundled.exists():
+        return bundled
+    # Writable cache next to the exe / pykovdatak/.
+    return (data_root() / "data" / "default_benchmarks.json").resolve()
 
 
 def _initial_threshold_baseline_go(thresholds: List[float]) -> float:

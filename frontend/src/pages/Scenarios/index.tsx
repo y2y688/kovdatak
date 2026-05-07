@@ -241,7 +241,7 @@ function ScenarioDetail({ item }: { item: ScenarioRecord | null }) {
       <ScenarioScoreAccHistoryChart items={groupItems} />
       <div className="p-2 rounded border border-primary bg-surface-2 text-sm space-y-2">
         <div className="flex items-center gap-2">
-          <span className="text-secondary">世界第一名</span>
+          <span className="text-secondary">世界第一</span>
           {topLoading ? (
             <span className="text-secondary">正在加载...</span>
           ) : topValue != null ? (
@@ -253,7 +253,7 @@ function ScenarioDetail({ item }: { item: ScenarioRecord | null }) {
         {topValue != null && (
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-xs">
-              <span className="text-secondary">你的最高</span>
+              <span className="text-secondary">你的最高分</span>
               <span className="text-primary">{bestScore.toLocaleString()}</span>
               <span className="text-secondary">({pct.toFixed(1)}%)</span>
             </div>
