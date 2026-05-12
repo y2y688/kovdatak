@@ -10,19 +10,20 @@ import type { MousePoint, ScenarioRecord } from '../../../types/ipc';
 
 type MouseTraceTabProps = { item: ScenarioRecord; items?: ScenarioRecord[] }
 
-function PracticeHeatmap() {
+export function PracticeHeatmap({ items }: { items?: ScenarioRecord[] }) {
   const allScenarios = useStore(s => s.scenarios)
+  const sourceItems = items ?? allScenarios
 
   const dayCounts = useMemo(() => {
     const m: Record<string, number> = {}
-    for (const r of allScenarios) {
+    for (const r of sourceItems) {
       const d = getDatePlayed(r.stats)
       if (!d) continue
       const key = d.slice(0, 10)
       m[key] = (m[key] || 0) + 1
     }
     return m
-  }, [allScenarios])
+  }, [sourceItems])
 
   const maxCount = useMemo(() => Math.max(...Object.values(dayCounts), 1), [dayCounts])
 
@@ -69,7 +70,7 @@ function PracticeHeatmap() {
   const canNext = year < today.getFullYear() || (year === today.getFullYear() && month < today.getMonth())
 
   return (
-    <div className="p-3 rounded border border-primary bg-surface-2 text-sm flex-1 flex flex-col">
+    <div className="p-3 rounded border border-primary bg-surface-2 text-sm w-80 flex flex-col">
       <div className="flex items-center justify-between mb-2 shrink-0">
         <span className="text-sm font-medium text-primary">练习热点图</span>
         <div className="flex items-center gap-2">
@@ -91,7 +92,7 @@ function PracticeHeatmap() {
           <div key={wi} className="grid grid-cols-7 gap-[4px]">
             {week.map((cell, di) => {
               if (cell.day === 0) return <div key={di} />
-              const pct = cell.count > 0 ? Math.max(0.15, Math.min(cell.count / maxCount, 1)) : 0
+              const pct = cell.count > 0 ? Math.max(0.08, Math.log(cell.count + 1) / Math.log(maxCount + 1)) : 0
               return (
                 <div
                   key={di}
@@ -192,14 +193,13 @@ export function MouseTraceTab({ item, items }: MouseTraceTabProps) {
 
   return (
     <div className="space-y-3">
-      <div className="flex gap-3 flex-wrap">
-        <div className="p-3 rounded border border-primary bg-surface-2 text-sm w-80">
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="p-3 rounded border border-primary bg-surface-2 text-sm">
+        <div className="flex items-center gap-2">
           <Input
             value={tracesDir}
             onChange={e => setTracesDir(e.target.value)}
             placeholder="例如：C:\\path\\to\\traces"
-            className="w-full"
+            className="w-[520px] max-w-full"
           />
           <button
             disabled={tracesDirSaving || !normalizedTracesDir || isTracesDirSaved}
@@ -237,16 +237,16 @@ export function MouseTraceTab({ item, items }: MouseTraceTabProps) {
                 disabled={!canOpen}
                 className={`w-full text-left px-2 py-1 rounded border text-xs transition-colors ${
                   !canOpen
-                    ? 'border-primary/40 text-secondary/50 bg-surface-2 cursor-not-allowed'
+                    ? 'border-transparent bg-transparent text-secondary/40 cursor-not-allowed'
                     : active
                       ? 'bg-surface-3 border-primary text-primary'
-                      : 'border-transparent bg-transparent text-secondary hover:bg-surface-3 hover:border-primary/40'
+                      : 'border-primary/40 text-secondary bg-surface-2 hover:bg-surface-3'
                 }`}
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="truncate">{getDatePlayed(r.stats)}</div>
                   <div className="shrink-0">
-                    {canOpen ? '有轨迹' : '无轨迹'} • 分数 {r.stats['Score'] ?? '?'} • {formatPct01(r.stats['Accuracy'])}
+                    {canOpen ? '有轨迹' : '无轨迹'} • 分数 {r.stats['Score'] ?? '?'} • {formatPct01(r.stats['Accuracy'])}{r.stats['Horiz Sens'] != null ? ` • ${r.stats['Sens Scale'] ?? '?'}: ${Number(r.stats['Horiz Sens']).toFixed(2)}` : ''}
                   </div>
                 </div>
               </button>
@@ -254,11 +254,9 @@ export function MouseTraceTab({ item, items }: MouseTraceTabProps) {
           })}
         </div>
       </div>
-        <PracticeHeatmap />
-      </div>
 
       {!currentItem ? (
-        <div className="text-sm text-secondary p-2">请先在上方选择一条记录。</div>
+        <div className="text-sm text-secondary p-2">请先在列表中选一条记录。</div>
       ) : loading ? (
         <Loading />
       ) : loadError ? (
@@ -266,12 +264,10 @@ export function MouseTraceTab({ item, items }: MouseTraceTabProps) {
       ) : points.length === 0 ? (
         <div className="text-sm text-secondary p-2">该记录暂无可显示的鼠标轨迹。</div>
       ) : (
-        <div className="space-y-3">
-          <TraceViewer
-            points={points}
-            stats={currentItem.stats}
-          />
-        </div>
+        <TraceViewer
+          points={points}
+          stats={currentItem.stats}
+        />
       )}
     </div>
   )

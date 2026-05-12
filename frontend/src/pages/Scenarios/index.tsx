@@ -10,12 +10,13 @@ import { getScenarioTopScore, getSettings, launchScenario, updateSettings } from
 import { formatPct01, getDatePlayed, getScenarioName } from '../../lib/utils';
 import type { ScenarioRecord, ScenarioTopScore } from '../../types/ipc';
 import { ScenarioScoreAccHistoryChart } from '../../components/scenarios/ScenarioScoreAccHistoryChart';
-import { MouseTraceTab } from './tabs/MouseTrace';
+import { MouseTraceTab, PracticeHeatmap } from './tabs/MouseTrace';
 
 export function ScenariosPage() {
   const scenarios = useStore(s => s.scenarios)
   const [activeId, setActiveId] = usePageState<string | null>('activeFile', scenarios[0]?.filePath ?? null)
   const active = useMemo(() => scenarios.find(s => s.filePath === activeId) ?? scenarios[0] ?? null, [scenarios, activeId])
+  const [tab, setTab] = useState<'data' | 'trace'>('data')
   const didInitFromUrl = useRef(false)
   const [watchPath, setWatchPath] = useState<string>('stats')
   const [statsDir, setStatsDir] = useState<string>('')
@@ -107,7 +108,9 @@ export function ScenariosPage() {
   return (
     <div className="space-y-4 h-full flex flex-col p-4">
       <div className="p-3 rounded border border-primary bg-surface-2 text-sm">
-        <div className="font-medium mb-2">统计目录</div>
+        <div className="flex items-center mb-2">
+          <span className="font-medium">统计目录</span>
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           <Input
             value={statsDir}
@@ -175,6 +178,16 @@ export function ScenariosPage() {
               <div className="text-base font-medium text-primary truncate" title={String(active.stats['Scenario'] ?? getScenarioName(active))}>
                 {active.stats['Scenario'] ?? getScenarioName(active)}
               </div>
+              <div className="flex gap-1 ml-2">
+                <button onClick={() => setTab('data')}
+                  className={`px-2 py-0.5 rounded text-xs ${tab === 'data' ? 'bg-surface-3 text-primary' : 'text-secondary hover:bg-surface-3'}`}>
+                  数据
+                </button>
+                <button onClick={() => setTab('trace')}
+                  className={`px-2 py-0.5 rounded text-xs ${tab === 'trace' ? 'bg-surface-3 text-primary' : 'text-secondary hover:bg-surface-3'}`}>
+                  轨迹
+                </button>
+              </div>
               <button
                 className="ml-auto inline-flex items-center gap-1 text-xs px-2 py-1 rounded border border-primary text-primary hover:bg-surface-3"
                 title="在Kovaak's中播放"
@@ -188,14 +201,14 @@ export function ScenariosPage() {
               </button>
             </div>
           ) : null}
-          detail={<ScenarioDetail item={active ?? null} />}
+          detail={<ScenarioDetail item={active ?? null} tab={tab} />}
         />
       </div>
     </div>
   )
 }
 
-function ScenarioDetail({ item }: { item: ScenarioRecord | null }) {
+function ScenarioDetail({ item, tab }: { item: ScenarioRecord | null; tab: 'data' | 'trace' }) {
   const allScenarios = useStore(s => s.scenarios)
   const [topScore, setTopScore] = useState<ScenarioTopScore | null>(null)
   const [topLoading, setTopLoading] = useState(false)
@@ -238,35 +251,41 @@ function ScenarioDetail({ item }: { item: ScenarioRecord | null }) {
 
   return (
     <div className="space-y-3">
-      <ScenarioScoreAccHistoryChart items={groupItems} />
-      <div className="p-2 rounded border border-primary bg-surface-2 text-sm space-y-2">
-        <div className="flex items-center gap-2">
-          <span className="text-secondary">世界第一</span>
-          {topLoading ? (
-            <span className="text-secondary">正在加载...</span>
-          ) : topValue != null ? (
-            <span className="text-primary font-medium">{topValue.toLocaleString()}</span>
-          ) : (
-            <span className="text-secondary">暂无数据</span>
-          )}
-        </div>
-        {topValue != null && (
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 text-xs">
-              <span className="text-secondary">你的最高分</span>
-              <span className="text-primary">{bestScore.toLocaleString()}</span>
-              <span className="text-secondary">({pct.toFixed(1)}%)</span>
+      {tab === 'data' ? (
+        <>
+          <ScenarioScoreAccHistoryChart items={groupItems} />
+          <div className="p-2 rounded border border-primary bg-surface-2 text-sm space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="text-secondary">世界第一</span>
+              {topLoading ? (
+                <span className="text-secondary">正在加载...</span>
+              ) : topValue != null ? (
+                <span className="text-primary font-medium">{topValue.toLocaleString()}</span>
+              ) : (
+                <span className="text-secondary">暂无数据</span>
+              )}
             </div>
-            <div className="w-full h-2 rounded bg-surface-3 overflow-hidden">
-              <div
-                className="h-full rounded bg-accent transition-all duration-300"
-                style={{ width: `${Math.max(pct, 2)}%` }}
-              />
-            </div>
+            {topValue != null && (
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-secondary">你的最高分</span>
+                  <span className="text-primary">{bestScore.toLocaleString()}</span>
+                  <span className="text-secondary">({pct.toFixed(1)}%)</span>
+                </div>
+                <div className="w-full h-2 rounded bg-surface-3 overflow-hidden">
+                  <div
+                    className="h-full rounded bg-accent transition-all duration-300"
+                    style={{ width: `${Math.max(pct, 2)}%` }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
-        )}
-      </div>
-      <MouseTraceTab item={item} items={groupItems} />
+          <PracticeHeatmap items={groupItems} />
+        </>
+      ) : (
+        <MouseTraceTab item={item} items={groupItems} />
+      )}
     </div>
   )
 }
