@@ -1,5 +1,5 @@
 {
-  "stats_dir": "",
+  "stats_dir": "D:\\steam\\steamapps\\common\\FPSAimTrainer\\FPSAimTrainer\\stats",
   "traces_dir": "data/traces",
   "kovaaks_process_name": "FPSAimTrainer.exe",
   "mouse_buffer_seconds": 600,

@@ -2,8 +2,6 @@ export const THEMES = [
   { id: 'dark', label: '黑蓝' },
   { id: 'light', label: '白蓝' },
   { id: 'dracula', label: '灰紫' },
-  { id: 'solarized-dark', label: '蓝调' },
-  { id: 'solarized-light', label: '米蓝' },
   { id: 'midnight', label: '黑紫' },
 ] as const
 export type Theme = typeof THEMES[number]['id']
