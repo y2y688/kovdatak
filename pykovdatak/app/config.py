@@ -104,17 +104,18 @@ def config_path() -> Path:
 
 
 def _is_valid_writable_path(path_str: str) -> bool:
-    """检查路径是否有效且可写入。"""
+    """检查路径是否有效且可写入（最多向上查找 2 层父目录）。"""
     if not path_str:
         return True  # 空路径使用默认值，视为有效
     try:
         p = Path(path_str)
-        # 检查路径是否存在
         if p.exists():
             return True
-        # 检查父目录是否存在且可写
+        # 检查父目录（最多 2 层），防止找到不相关的上级目录
         parent = p.parent
-        while parent != parent.parent:
+        for _ in range(2):
+            if parent == parent.parent:  # 已到根目录
+                break
             if parent.exists():
                 return parent.is_dir() and os.access(parent, os.W_OK)
             parent = parent.parent
