@@ -235,7 +235,8 @@ async def api_delete_custom_benchmark(cid: str):
 @app.get("/api/benchmarks/progress/{benchmark_id}")
 async def api_benchmark_progress(benchmark_id: int):
     try:
-        prog = benchmarks.build_progress(int(benchmark_id))
+        loop = asyncio.get_running_loop()
+        prog = await loop.run_in_executor(None, benchmarks.build_progress, int(benchmark_id))
         return {"id": int(benchmark_id), "progress": prog}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -245,13 +246,15 @@ async def api_benchmark_progress(benchmark_id: int):
 async def api_benchmark_progresses():
     # Fetch for all benchmark difficulty IDs present in the embedded list.
     out: Dict[int, Any] = {}
-    for b in benchmarks.get_benchmarks():
+    loop = asyncio.get_running_loop()
+    bench_data = await loop.run_in_executor(None, benchmarks.get_benchmarks)
+    for b in bench_data:
         for d in b.get("difficulties") or []:
             bid = int(d.get("kovaaksBenchmarkId") or 0)
             if bid <= 0:
                 continue
             try:
-                out[bid] = benchmarks.build_progress(bid)
+                out[bid] = await loop.run_in_executor(None, benchmarks.build_progress, bid)
             except Exception:
                 # keep partial results
                 continue

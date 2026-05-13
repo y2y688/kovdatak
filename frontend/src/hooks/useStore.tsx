@@ -210,7 +210,8 @@ function endTs(s: ScenarioRecord): number {
 function startIso(s: ScenarioRecord): string {
   const end = endIso(s)
   const datePart = end.split('T')[0]
-  const time = s.stats['Challenge Start'] as string
+  const time = String(s.stats['Challenge Start'] ?? '')
+  if (!time) return end
   // Reuse timezone suffix from endIso (e.g. "+07:00" or "Z") so the constructed
   // start timestamp uses the same timezone context instead of forcing UTC.
   const tzMatch = String(end).match(/([+-]\d{2}:\d{2}|Z)$/)

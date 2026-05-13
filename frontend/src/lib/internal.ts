@@ -252,7 +252,12 @@ export async function getScenarioTrace(fileOrTraceId: string): Promise<string> {
   let s = ''
   const chunk = 0x8000
   for (let i = 0; i < bytes.length; i += chunk) {
-    s += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunk)))
+    const sub = bytes.subarray(i, i + chunk)
+    let seg = ''
+    for (let j = 0; j < sub.length; j++) {
+      seg += String.fromCharCode(sub[j])
+    }
+    s += seg
   }
   return btoa(s)
 }

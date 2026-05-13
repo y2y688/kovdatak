@@ -1,6 +1,28 @@
 import type { MousePoint } from '../types/ipc';
 import { clamp, formatMmSs } from './utils';
 
+// Quickselect-based median (O(n) average) to avoid sorting every frame
+function quickSelectMedian(arr: number[]): number | undefined {
+  const n = arr.length
+  if (n === 0) return undefined
+  if (n === 1) return arr[0]
+  const target = Math.floor(n / 2)
+  const a = arr.slice()
+  let lo = 0, hi = n - 1
+  while (lo < hi) {
+    const pivot = a[hi]
+    let i = lo
+    for (let j = lo; j < hi; j++) {
+      if (a[j] <= pivot) { const t = a[i]; a[i] = a[j]; a[j] = t; i++ }
+    }
+    const t = a[i]; a[i] = a[hi]; a[hi] = t
+    if (i === target) break
+    if (i < target) lo = i + 1
+    else hi = i - 1
+  }
+  return a[target]
+}
+
 export type Highlight = { startTs?: number; endTs?: number; color?: string }
 export type Marker = { ts: number; color?: string; radius?: number; type?: 'circle' | 'cross' }
 
@@ -145,8 +167,7 @@ export function renderTrace(
     const { speeds, maxV } = calculateSpeeds(points, startIdx, endIdx)
 
     // 使用中位数作为基准，让颜色变化更明显
-    const sorted = [...speeds].sort((a, b) => a - b)
-    const median = sorted[Math.floor(sorted.length / 2)] ?? 200
+    const median = quickSelectMedian(speeds) ?? 200
     // 红色阈值设为中位数的2倍
     const threshold = Math.max(median * 2, 200)
 

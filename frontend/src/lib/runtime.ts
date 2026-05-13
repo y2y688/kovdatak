@@ -17,12 +17,16 @@ function ensureEventState(): EventState {
     window.__kovdatakEvents = { handlers: new Map(), ws: null, reconnectTimer: null }
   }
   const state = window.__kovdatakEvents
+  let reconnectAttempts = 0
   const scheduleReconnect = () => {
     if (state.reconnectTimer !== null) return
+    reconnectAttempts++
+    const delay = Math.min(1000 * Math.pow(2, reconnectAttempts - 1), 30000)
     state.reconnectTimer = window.setTimeout(() => {
       state.reconnectTimer = null
+      reconnectAttempts = 0
       ensureEventState()
-    }, 1500)
+    }, delay)
   }
   if (!state.ws) {
     try {
