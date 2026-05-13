@@ -291,26 +291,14 @@ class StatsPipeline:
 
         # initial scan (can be expensive if the folder contains many files)
         if scan_existing:
-            # Create a callback to emit records as they're parsed
-            def on_scanned_record(rec: ScenarioRecord) -> None:
-                # Add to recent list
-                with self._lock:
-                    self._recent.append(rec)
-                    if len(self._recent) > 2000:
-                        self._recent = self._recent[-2000:]
-                # Emit immediately for real-time UI updates
-                self._emit(rec)
-
             def _scan():
-                # Add listener for real-time updates (don't remove existing listeners!)
-                self.add_listener(on_scanned_record)
                 try:
                     for child in sorted(self.stats_dir.glob("* Stats.csv")):
                         if self._stop.is_set():
                             break
                         self._handle_file(str(child))
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.error(f"初始扫描失败: {e}", exc_info=True)
 
             if scan_async:
                 threading.Thread(target=_scan, daemon=True).start()
