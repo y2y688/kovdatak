@@ -70,6 +70,7 @@ class StatsPipeline:
         self,
         stats_dir: str,
         traces_dir: str,
+        records_path: str,
         kovaaks_process_name: str,
         mouse_buffer_seconds: int,
         mouse_tracking_enabled: bool = True,
@@ -77,6 +78,7 @@ class StatsPipeline:
     ):
         self.stats_dir = Path(stats_dir) if stats_dir else Path()
         self.traces = TraceStore(traces_dir)
+        self.records_path = Path(records_path)
         self.process_name = kovaaks_process_name
         self.mouse = MouseTracker(
             buffer_seconds=mouse_buffer_seconds,
