@@ -161,7 +161,15 @@ def load_or_create_config() -> AppConfig:
 
 
 def save_config(cfg: AppConfig) -> None:
+    d = asdict(cfg)
+    # 将绝对路径转回相对路径，确保 exe 可移植到其他电脑
+    if d.get("traces_dir"):
+        try:
+            rel = Path(d["traces_dir"]).relative_to(data_root())
+            d["traces_dir"] = str(rel.as_posix())
+        except ValueError:
+            pass  # 不在 data_root 下，保持原样（如用户自定义路径）
     p = config_path()
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(json.dumps(asdict(cfg), ensure_ascii=False, indent=2), encoding="utf-8")
+    p.write_text(json.dumps(d, ensure_ascii=False, indent=2), encoding="utf-8")
 
