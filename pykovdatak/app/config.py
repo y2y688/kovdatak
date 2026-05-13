@@ -21,6 +21,8 @@ class AppConfig:
     steam_install_dir: str = ""
     steam_id_override: str = ""
     steam_id: str = ""  # optional explicit SteamID64 (highest priority)
+    theme: str = "dark"
+    font: str = "montserrat"
 
     def validate(self) -> dict:
         """

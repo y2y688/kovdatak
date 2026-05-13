@@ -133,6 +133,8 @@ async def get_config():
         "steam_install_dir": getattr(cfg, "steam_install_dir", ""),
         "steam_id_override": getattr(cfg, "steam_id_override", ""),
         "steam_id": cfg.steam_id,
+        "theme": getattr(cfg, "theme", "dark"),
+        "font": getattr(cfg, "font", "montserrat"),
     }
 
 
@@ -185,6 +187,10 @@ async def update_config(payload: Dict[str, Any]):
     if "steam_id_override" in payload and isinstance(payload["steam_id_override"], str):
         cfg.steam_id_override = payload["steam_id_override"]
         benchmarks.steam_id_override = cfg.steam_id_override
+    if "theme" in payload and isinstance(payload["theme"], str):
+        cfg.theme = payload["theme"]
+    if "font" in payload and isinstance(payload["font"], str):
+        cfg.font = payload["font"]
     save_config(cfg)
     return {"ok": True}
 

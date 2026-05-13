@@ -5,16 +5,22 @@ import { AppLayout } from './components/layout/AppLayout'
 import { Loading } from './components/shared/Loading'
 import { StoreProvider } from './hooks/useStore'
 import { applyFont, applyTheme, getSavedFont, getSavedTheme } from './lib/theme'
+import { getSettings } from './lib/internal'
 
 const BenchmarksPage = lazy(() => import('./pages/Benchmarks').then(m => ({ default: m.BenchmarksPage })))
 const ScenariosPage = lazy(() => import('./pages/Scenarios').then(m => ({ default: m.ScenariosPage })))
 const SettingsPage = lazy(() => import('./pages/Settings').then(m => ({ default: m.SettingsPage })))
 
 export default function App() {
-  // Simple theme bootstrap: read localStorage and set class on <html>.
+  // Bootstrap theme from backend config, fall back to localStorage.
   useEffect(() => {
-    applyTheme(getSavedTheme())
-    applyFont(getSavedFont())
+    getSettings().then(s => {
+      applyTheme((s?.theme as any) || getSavedTheme())
+      applyFont((s?.font as any) || getSavedFont())
+    }).catch(() => {
+      applyTheme(getSavedTheme())
+      applyFont(getSavedFont())
+    })
   }, [])
 
   return (

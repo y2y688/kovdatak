@@ -61,8 +61,8 @@ export async function getSettings(): Promise<Settings> {
     statsDir: cfg?.stats_dir || '',
     tracesDir: cfg?.traces_dir || '',
     sessionGapMinutes: 30,
-    theme: 'dark',
-    font: 'montserrat',
+    theme: cfg?.theme || 'dark',
+    font: cfg?.font || 'montserrat',
     favoriteBenchmarks: [],
     mouseTrackingEnabled: Boolean(cfg?.mouse_tracking_enabled ?? true),
     mouseBufferMinutes: Math.round((Number(cfg?.mouse_buffer_seconds) || 600) / 60),
@@ -84,6 +84,8 @@ export async function updateSettings(payload: Settings): Promise<void> {
       traces_dir: (payload as any)?.tracesDir,
       mouse_buffer_seconds: (Number((payload as any)?.mouseBufferMinutes) || 10) * 60,
       mouse_tracking_enabled: Boolean((payload as any)?.mouseTrackingEnabled ?? true),
+      theme: (payload as any)?.theme || 'dark',
+      font: (payload as any)?.font || 'montserrat',
     }),
   })
   if ((payload as any)?.scenarioNotes) writeJSON(LS_SCENARIO_NOTES, (payload as any).scenarioNotes)
