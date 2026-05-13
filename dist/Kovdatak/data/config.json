@@ -1,6 +1,6 @@
 {
   "stats_dir": "D:\\steam\\steamapps\\common\\FPSAimTrainer\\FPSAimTrainer\\stats",
-  "traces_dir": "C:\\Users\\wuyin\\Desktop\\kovdatak\\dist\\Kovdatak\\data\\traces",
+  "traces_dir": "data/traces",
   "kovaaks_process_name": "FPSAimTrainer.exe",
   "mouse_buffer_seconds": 600,
   "mouse_sample_interval": 0.0,
