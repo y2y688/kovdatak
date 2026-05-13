@@ -69,7 +69,6 @@ if react_dir.exists():
 pipeline = StatsPipeline(
     stats_dir=cfg.stats_dir,
     traces_dir=cfg.traces_dir,
-    records_path=str(data_root() / "data" / "scenario_records.jsonl"),
     kovaaks_process_name=cfg.kovaaks_process_name,
     mouse_buffer_seconds=cfg.mouse_buffer_seconds,
     mouse_tracking_enabled=getattr(cfg, "mouse_tracking_enabled", True),

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import logging
 import threading
 import time
@@ -70,7 +69,6 @@ class StatsPipeline:
         self,
         stats_dir: str,
         traces_dir: str,
-        records_path: str,
         kovaaks_process_name: str,
         mouse_buffer_seconds: int,
         mouse_tracking_enabled: bool = True,
@@ -78,7 +76,6 @@ class StatsPipeline:
     ):
         self.stats_dir = Path(stats_dir) if stats_dir else Path()
         self.traces = TraceStore(traces_dir)
-        self.records_path = Path(records_path)
         self.process_name = kovaaks_process_name
         self.mouse = MouseTracker(
             buffer_seconds=mouse_buffer_seconds,
@@ -301,9 +298,6 @@ class StatsPipeline:
                     self._recent.append(rec)
                     if len(self._recent) > 2000:
                         self._recent = self._recent[-2000:]
-                    # Write to file
-                    with self.records_path.open("a", encoding="utf-8") as f:
-                        f.write(json.dumps(rec.to_jsonable(), ensure_ascii=False) + "\n")
                 # Emit immediately for real-time UI updates
                 self._emit(rec)
 
