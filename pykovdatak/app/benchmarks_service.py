@@ -51,12 +51,7 @@ def _read_json(path: Path) -> Any:
 
 
 def _benchmarks_data_path() -> Path:
-    # Bundled inside the exe (_internal/app/data/) or pykovdatak/app/data/ (dev).
-    bundled = (assets_root() / "app" / "data" / "default_benchmarks.json").resolve()
-    if bundled.exists():
-        return bundled
-    # Fallback: exe 旁的 data/ 目录
-    return (data_root() / "data" / "default_benchmarks.json").resolve()
+    return (assets_root() / "app" / "data" / "default_benchmarks.json").resolve()
 
 
 def _initial_threshold_baseline_go(thresholds: List[float]) -> float:
