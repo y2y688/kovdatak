@@ -197,7 +197,9 @@ async def update_config(payload: Dict[str, Any]):
 
 @app.get("/api/benchmarks")
 async def api_benchmarks():
-    return {"benchmarks": benchmarks.get_benchmarks()}
+    loop = asyncio.get_running_loop()
+    bench_data = await loop.run_in_executor(None, benchmarks.get_benchmarks)
+    return {"benchmarks": bench_data}
 
 
 @app.get("/api/benchmarks/favorites")
