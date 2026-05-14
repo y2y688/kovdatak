@@ -2,10 +2,9 @@ from __future__ import annotations
 
 import logging
 import threading
-import time
 from collections import deque
 from dataclasses import dataclass, asdict
-from typing import Deque, List, Tuple
+from typing import Deque, List
 
 logger = logging.getLogger(__name__)
 
@@ -48,10 +47,8 @@ class MouseTracker:
 
     def __init__(self, buffer_seconds: int = 600, min_sample_interval: float = 0.0):
         logger.info(f"初始化鼠标跟踪器: buffer_seconds={buffer_seconds}, min_sample_interval={min_sample_interval}")
-        self._buffer = MouseRingBuffer(buffer_seconds)
         self._enabled = False
         self._lock = threading.RLock()
-        self._listener = None
         self._buttons = 0
         self._impl = None
         self._buffer_seconds = buffer_seconds
@@ -80,7 +77,6 @@ class MouseTracker:
                 return
             self._enabled = True
 
-        # Prefer Windows Raw Input (matches upstream Go behavior: relative deltas, unclipped virtual coords)
         logger.info("尝试Windows Raw Input实现")
         try:
             import sys
@@ -95,62 +91,10 @@ class MouseTracker:
                 with self._lock:
                     self._impl = impl
                 logger.info("Windows Raw Input跟踪器启动成功")
-                return
         except Exception as e:
-            logger.warning(f"Windows Raw Input失败，回退到pynput: {e}", exc_info=True)
-            # Fall back to pynput
-            pass
-
-        logger.info("尝试pynput实现")
-        try:
-            from pynput import mouse  # type: ignore
-        except Exception as e:
-            logger.error(f"pynput导入失败: {e}", exc_info=True)
+            logger.error(f"Windows Raw Input启动失败: {e}", exc_info=True)
             with self._lock:
                 self._enabled = False
-            return
-
-        def on_move(x, y):
-            self._buffer.add(MousePoint(t=time.time(), x=int(x), y=int(y), buttons=self._get_buttons()))
-
-        def on_click(x, y, button, pressed):
-            # Match upstream bitmask:
-            # 1=Left, 2=Right, 4=Middle, 8=Button4, 16=Button5
-            bit = 0
-            try:
-                if button == mouse.Button.left:
-                    bit = 1
-                elif button == mouse.Button.right:
-                    bit = 2
-                elif button == mouse.Button.middle:
-                    bit = 4
-                elif button == mouse.Button.x1:
-                    bit = 8
-                elif button == mouse.Button.x2:
-                    bit = 16
-            except Exception:
-                bit = 0
-            if bit:
-                self._set_button(bit, bool(pressed))
-            # Also record a point at click time for clearer markers
-            self._buffer.add(MousePoint(t=time.time(), x=int(x), y=int(y), buttons=self._get_buttons()))
-
-        try:
-            self._listener = mouse.Listener(on_move=on_move, on_click=on_click)
-            self._listener.daemon = True
-            self._listener.start()
-            # Check if listener is actually running
-            if not self._listener.is_alive():
-                raise RuntimeError("pynput listener failed to start")
-            logger.info("pynput监听器启动成功")
-            with self._lock:
-                self._impl = None
-        except Exception as e:
-            logger.error(f"pynput监听器启动失败: {e}", exc_info=True)
-            with self._lock:
-                self._enabled = False
-                self._listener = None
-            return
 
     def stop(self) -> None:
         logger.info("停止鼠标跟踪器")
@@ -159,12 +103,6 @@ class MouseTracker:
                 logger.info("鼠标跟踪器未启用，跳过停止")
                 return
             impl = self._impl
-            if self._listener is not None:
-                try:
-                    self._listener.stop()
-                except Exception:
-                    pass
-            self._listener = None
             self._enabled = False
             self._buttons = 0
             self._impl = None
@@ -174,7 +112,6 @@ class MouseTracker:
                 impl.stop()
         except Exception as e:
             logger.warning(f"停止跟踪器实现时出错: {e}")
-            pass
         logger.info("鼠标跟踪器已停止")
 
     def get_range(self, start_t: float, end_t: float) -> List[MousePoint]:
@@ -185,7 +122,5 @@ class MouseTracker:
             points = impl.get_range(start_t, end_t)
             logger.debug(f"从实现获取 {len(points)} 个点")
             return points
-        points = self._buffer.get_range(start_t, end_t)
-        logger.debug(f"从缓冲区获取 {len(points)} 个点")
-        return points
+        return []
 

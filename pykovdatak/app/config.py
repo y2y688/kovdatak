@@ -20,7 +20,7 @@ class AppConfig:
     mouse_tracking_enabled: bool = True
     steam_install_dir: str = ""
     steam_id_override: str = ""
-    steam_id: str = ""  # optional explicit SteamID64 (highest priority)
+    steam_id: str = ""
     theme: str = "dark"
     font: str = "montserrat"
 

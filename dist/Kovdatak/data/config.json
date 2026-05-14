@@ -5,7 +5,9 @@
   "mouse_buffer_seconds": 600,
   "mouse_sample_interval": 0.0,
   "mouse_tracking_enabled": true,
-  "steam_install_dir": "",
+  "steam_install_dir": "D:\\steam",
   "steam_id_override": "",
-  "steam_id": ""
+  "steam_id": "",
+  "theme": "dracula",
+  "font": "montserrat"
 }

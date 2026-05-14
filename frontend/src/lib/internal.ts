@@ -25,16 +25,16 @@ function writeJSON(key: string, value: unknown): void {
 }
 
 export async function getRecentScenarios(limit = 0): Promise<ScenarioRecord[]> {
-  const n = Number(limit) || 200
+  const n = Number(limit) || 500
   const res = await apiJSON(`/api/records?limit=${encodeURIComponent(String(n))}`)
   const rows = Array.isArray(res?.records) ? res.records : []
   return rows.map((rec: any) => ({
-    filePath: rec?.filePath ?? rec?.file_path ?? '',
-    fileName: rec?.fileName ?? rec?.file_name ?? '',
-    traceId: rec?.traceId ?? rec?.trace_id ?? '',
+    filePath: rec?.file_path ?? '',
+    fileName: rec?.file_name ?? '',
+    traceId: rec?.trace_id ?? '',
     stats: rec?.stats ?? {},
     events: Array.isArray(rec?.events) ? rec.events : [],
-    hasTrace: Boolean(rec?.hasTrace ?? rec?.has_trace),
+    hasTrace: Boolean(rec?.has_trace ?? false),
   })) as ScenarioRecord[]
 }
 
@@ -176,34 +176,17 @@ export async function launchScenario(name: string, mode: string = 'challenge'): 
   const n = String(name || '').trim()
   if (!n) return
   const m = String(mode || 'challenge').trim() || 'challenge'
-  try {
-    await apiJSON('/api/launch/scenario', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: n, mode: m }),
-    })
-  } catch {
-    // Fallback: direct deeplink (may be less reliable in some browsers)
-    const en = encodeURIComponent(n)
-    const em = encodeURIComponent(m)
-    window.location.href = `steam://run/824270/?action=jump-to-scenario;name=${en};mode=${em}`
-  }
+  const en = encodeURIComponent(n)
+  const em = encodeURIComponent(m)
+  window.location.href = `steam://run/824270/?action=jump-to-scenario;name=${en};mode=${em}`
 }
 
 // Launch a Kovaak's playlist via Steam deeplink using a sharecode
 export async function launchPlaylist(sharecode: string): Promise<void> {
   const sc = String(sharecode || '').trim()
   if (!sc) return
-  try {
-    await apiJSON('/api/launch/playlist', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sharecode: sc }),
-    })
-  } catch {
-    const esc = encodeURIComponent(sc)
-    window.location.href = `steam://run/824270/?action=jump-to-playlist;sharecode=${esc}`
-  }
+  const esc = encodeURIComponent(sc)
+  window.location.href = `steam://run/824270/?action=jump-to-playlist;sharecode=${esc}`
 }
 
 export async function getScenarioTopScore(scenarioName: string): Promise<ScenarioTopScore> {
@@ -234,7 +217,7 @@ export async function getScenarioTrace(fileOrTraceId: string): Promise<string> {
   for (let i = 0; i < count; i++) {
     const p = pts[i] || {}
     // 后端返回 ts 字段（秒），不是 t
-    const ts = p.ts ?? p.t ?? 0
+    const ts = p.ts ?? 0
     const tsMs = Math.round(Number(ts) * 1000)
     const tsNano = BigInt(Math.trunc(tsMs)) * BigInt(1000000)
     view.setBigInt64(off, tsNano, true)

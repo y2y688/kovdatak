@@ -20,11 +20,6 @@ default_benchmark_data = PYREFLEKS / "app" / "data" / "default_benchmarks.json"
 if default_benchmark_data.exists():
     datas.append((str(default_benchmark_data), "app/data"))
 
-# 打包默认基准测试数据
-default_benchmark_data = PYREFLEKS / "app" / "data" / "default_benchmarks.json"
-if default_benchmark_data.exists():
-    datas.append((str(default_benchmark_data), "app/data"))
-
 # 添加必要的隐藏导入
 # pynput 在 Windows 上动态导入 _win32 模块
 hiddenimports = [

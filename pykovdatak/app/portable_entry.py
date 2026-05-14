@@ -5,7 +5,6 @@ import threading
 import time
 import webbrowser
 from contextlib import closing
-from typing import Optional
 
 import uvicorn
 

@@ -66,7 +66,7 @@ export function BenchmarkStrengths({ bench, progress, difficultyIndex, height = 
         return {
             label: cat.name,
             value,
-            color: rankDef?.color || cat.color || theme.neutral,
+            color: rankDef?.color || theme.neutral,
             rankName: rankDef?.name || '未排名',
             score: avgScore
           }
@@ -83,7 +83,7 @@ export function BenchmarkStrengths({ bench, progress, difficultyIndex, height = 
           rows.push({
             label,
             value,
-            color: rankDef?.color || g.color || cat.color || theme.neutral,
+            color: rankDef?.color || theme.neutral,
             rankName: rankDef?.name || '未排名',
             score: avgScore
           })

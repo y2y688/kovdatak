@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import os
-import urllib.parse
 from pathlib import Path
 from typing import Any, Dict, List, Set
 
@@ -76,8 +75,8 @@ pipeline = StatsPipeline(
 )
 benchmarks = BenchmarksService(
     steam_id=cfg.steam_id,
-    steam_install_dir=getattr(cfg, "steam_install_dir", ""),
-    steam_id_override=getattr(cfg, "steam_id_override", ""),
+    steam_install_dir=cfg.steam_install_dir,
+    steam_id_override=cfg.steam_id_override,
 )
 favorites = FavoritesStore(str(data_root() / "data" / "favorite_benchmarks.json"))
 
@@ -178,12 +177,12 @@ async def update_config(payload: Dict[str, Any]):
     if "mouse_tracking_enabled" in payload:
         cfg.mouse_tracking_enabled = bool(payload["mouse_tracking_enabled"])
         pipeline.set_mouse_tracking_enabled(cfg.mouse_tracking_enabled)
-    if "steam_id" in payload and isinstance(payload["steam_id"], str):
-        cfg.steam_id = payload["steam_id"]
-        benchmarks.steam_id = cfg.steam_id
     if "steam_install_dir" in payload and isinstance(payload["steam_install_dir"], str):
         cfg.steam_install_dir = payload["steam_install_dir"]
         benchmarks.steam_install_dir = cfg.steam_install_dir
+    if "steam_id" in payload and isinstance(payload["steam_id"], str):
+        cfg.steam_id = payload["steam_id"]
+        benchmarks.steam_id = cfg.steam_id
     if "steam_id_override" in payload and isinstance(payload["steam_id_override"], str):
         cfg.steam_id_override = payload["steam_id_override"]
         benchmarks.steam_id_override = cfg.steam_id_override
@@ -331,7 +330,7 @@ async def api_delete_custom_playlist(pid: str):
 
 
 @app.get("/api/records")
-async def get_records(limit: int = 200):
+async def get_records(limit: int = 500):
     # 直接扫描stats目录获取所有CSV文件
     records = []
     stats_dir = Path(cfg.stats_dir)
@@ -366,36 +365,6 @@ async def get_trace(trace_id: str):
         return pipeline.traces.load(trace_id)
     except Exception:
         raise HTTPException(status_code=404, detail="trace not found")
-
-
-@app.post("/api/launch/scenario")
-async def api_launch_scenario(payload: Dict[str, Any]):
-    name = str((payload or {}).get("name") or "").strip()
-    mode = str((payload or {}).get("mode") or "challenge").strip() or "challenge"
-    if not name:
-        raise HTTPException(status_code=400, detail="missing scenario name")
-    n = urllib.parse.quote(name, safe="")
-    m = urllib.parse.quote(mode, safe="")
-    deeplink = f"steam://run/824270/?action=jump-to-scenario;name={n};mode={m}"
-    try:
-        os.startfile(deeplink)  # type: ignore[attr-defined]
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    return {"ok": True}
-
-
-@app.post("/api/launch/playlist")
-async def api_launch_playlist(payload: Dict[str, Any]):
-    sharecode = str((payload or {}).get("sharecode") or "").strip()
-    if not sharecode:
-        raise HTTPException(status_code=400, detail="missing sharecode")
-    sc = urllib.parse.quote(sharecode, safe="")
-    deeplink = f"steam://run/824270/?action=jump-to-playlist;sharecode={sc}"
-    try:
-        os.startfile(deeplink)  # type: ignore[attr-defined]
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    return {"ok": True}
 
 
 @app.websocket("/ws")

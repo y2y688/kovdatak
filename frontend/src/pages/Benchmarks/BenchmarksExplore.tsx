@@ -95,12 +95,22 @@ export function BenchmarksExplore({ items, favorites, loading, onToggleFav, onOp
   const [collapsedGroups, setCollapsedGroups] = useUIState<Record<string, boolean>>('explore:collapsedGroups', {})
   const toggleGroup = (group: string) => setCollapsedGroups(prev => ({ ...prev, [group]: !prev[group] }))
 
-  const [steamDir, setSteamDir] = useState<string>('')
-  const [savedSteamDir, setSavedSteamDir] = useState<string>('')
-  const [steamDirSaving, setSteamDirSaving] = useState<boolean>(false)
+  const [steamDir, setSteamDir] = useState('')
+  const [savedSteamDir, setSavedSteamDir] = useState('')
+  const [steamDirSaving, setSteamDirSaving] = useState(false)
   const [showCreate, setShowCreate] = useState(false)
   const [editingPlaylist, setEditingPlaylist] = useState<CustomPlaylist | null>(null)
   const [playlists, setPlaylists] = useState<CustomPlaylist[]>([])
+
+  useEffect(() => {
+    getSettings().then(s => {
+      const v = String((s as any)?.steamInstallDir || '')
+      setSteamDir(v)
+      setSavedSteamDir(v)
+    }).catch(() => {})
+  }, [])
+
+  const isSteamDirSaved = steamDir.trim().length > 0 && steamDir.trim() === savedSteamDir.trim()
 
   const loadPlaylists = useCallback(async () => {
     const data = await getCustomPlaylists()
@@ -108,19 +118,6 @@ export function BenchmarksExplore({ items, favorites, loading, onToggleFav, onOp
   }, [])
 
   useEffect(() => { loadPlaylists() }, [loadPlaylists])
-
-  useEffect(() => {
-    getSettings()
-      .then((s: any) => {
-        const v = String(s?.steamInstallDir || '')
-        setSteamDir(v)
-        setSavedSteamDir(v)
-      })
-      .catch(() => { })
-  }, [])
-
-  const normalizedSteamDir = steamDir.trim()
-  const isSteamDirSaved = normalizedSteamDir.length > 0 && normalizedSteamDir === savedSteamDir.trim()
 
   const handleLaunchPlaylist = (sharecode: string) => {
     launchPlaylist(sharecode)
@@ -145,6 +142,7 @@ export function BenchmarksExplore({ items, favorites, loading, onToggleFav, onOp
 
   return (
     <><div className="space-y-4 h-full p-4 overflow-auto">
+      {/* ── Steam安装目录 ── */}
       <div className="p-3 rounded border border-primary bg-surface-2 text-sm">
         <div className="font-medium mb-2">请填写steam安装目录</div>
         <div className="flex flex-wrap items-center gap-2">
@@ -155,16 +153,13 @@ export function BenchmarksExplore({ items, favorites, loading, onToggleFav, onOp
             className="w-[520px] max-w-full"
           />
           <button
-            disabled={steamDirSaving || !normalizedSteamDir || isSteamDirSaved}
+            disabled={steamDirSaving || !steamDir.trim() || isSteamDirSaved}
             onClick={async () => {
               setSteamDirSaving(true)
               try {
-                const cur: any = await getSettings().catch(() => ({}))
-                await updateSettings({ ...(cur || {}), steamInstallDir: normalizedSteamDir } as any)
-                const latest: any = await getSettings().catch(() => ({}))
-                const saved = String(latest?.steamInstallDir || normalizedSteamDir)
-                setSteamDir(saved)
-                setSavedSteamDir(saved)
+                const cur = await getSettings()
+                await updateSettings({ ...(cur as any), steamInstallDir: steamDir.trim() })
+                setSavedSteamDir(steamDir.trim())
               } catch (e) {
                 console.warn('更新steam安装目录失败', e)
               } finally {

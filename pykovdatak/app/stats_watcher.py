@@ -28,19 +28,11 @@ def _to_float(v: Any) -> float:
 
 
 def _derive_window(end_dt: datetime, stats: Dict[str, Any], events: List[List[str]]) -> tuple[datetime, datetime]:
-    start = None
+    start = end_dt - timedelta(seconds=60)
     if "Challenge Start" in stats:
         t = parse_tod_on_date(str(stats["Challenge Start"]), end_dt)
         if t is not None:
             start = t
-    if start is None and events and len(events[0]) > 1:
-        t = parse_tod_on_date(events[0][1], end_dt)
-        if t is not None:
-            start = t
-    if start is None:
-        start = end_dt - timedelta(seconds=60)
-    if start > end_dt:
-        start = start - timedelta(days=1)
     return start, end_dt
 
 

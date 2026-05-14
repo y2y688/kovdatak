@@ -95,7 +95,6 @@ import type { Font, Theme } from '../lib/theme'
 export interface Settings {
   steamInstallDir?: string
   steamIdOverride?: string
-  personaNameOverride?: string
   statsDir: string
   tracesDir: string
   sessionGapMinutes: number

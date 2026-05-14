@@ -70,7 +70,7 @@ REM Run PyInstaller from root directory using optimized spec
 cd pykovdatak
 call .venv\Scripts\activate.bat
 cd ..
-pyinstaller kovdatak_portable_optimized.spec --clean
+pyinstaller kovdatak_portable_optimized.spec --clean -y
 if %ERRORLEVEL% neq 0 (
     echo [ERROR] PyInstaller packaging failed
     exit /b 1

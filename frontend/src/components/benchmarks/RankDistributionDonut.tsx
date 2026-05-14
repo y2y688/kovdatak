@@ -86,7 +86,7 @@ export function RankDistributionDonut({ bench, progress, difficultyIndex, height
         borderWidth: 1,
         callbacks: {
           label: (ctx: any) => {
-            const v = ctx.parsed ?? ctx.raw ?? ctx.raw?.y ?? 0
+            const v = ctx.parsed ?? 0
             return `${ctx.label}: ${formatNumber(Number(v ?? 0), CHART_DECIMALS.numTooltip)}`
           }
         }

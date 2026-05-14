@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import urllib.parse
 import urllib.request
-import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from .config import data_root, assets_root
+from .config import assets_root
 from .steam_loginusers import parse_most_recent_user
 
 
@@ -132,20 +132,20 @@ def _parse_progress_tokens(raw: str) -> Tuple[List[Dict[str, Any]], List[Dict[st
 
 
 def _merge_rank_defs(ranks: List[Dict[str, Any]], diff: Optional[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    rank_colors = (diff or {}).get("rankColors") or {}
+    diff_ranks = (diff or {}).get("ranks") or []
+    rank_colors = {
+        r.get("name", "").strip().lower(): r.get("color", "").strip()
+        for r in diff_ranks if r.get("name")
+    } if diff_ranks and isinstance(diff_ranks, list) else {}
     out: List[Dict[str, Any]] = []
     for r in ranks:
         name = str(r.get("name", "")).strip()
         if not name or name.lower() == "no rank":
             continue
         col = str(r.get("color", "")).strip()
-        # override using diff.rankColors (case-insensitive name match)
-        for k, v in rank_colors.items():
-            if str(k).strip().lower() == name.lower() and str(v).strip():
-                col = str(v).strip()
-                break
-        if not col:
-            col = "#60a5fa"
+        override = rank_colors.get(name.lower())
+        if override:
+            col = override
         out.append({"name": name, "color": col})
     return out
 
@@ -193,7 +193,10 @@ class BenchmarksService:
     steam_id_override: str = ""
 
     def get_benchmarks(self) -> List[Dict[str, Any]]:
-        return _read_json(_benchmarks_data_path())
+        data = _read_json(_benchmarks_data_path())
+        if isinstance(data, dict):
+            return data.get("benchmarks", [])
+        return data if isinstance(data, list) else []
 
     def find_diff_by_benchmark_id(self, benchmark_id: int) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
         for b in self.get_benchmarks():

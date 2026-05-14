@@ -54,10 +54,6 @@ def _coerce_value(val: str) -> Any:
     if v == "":
         return ""
     try:
-        return int(v)
-    except Exception:
-        pass
-    try:
         return float(v)
     except Exception:
         return v
@@ -102,11 +98,9 @@ def parse_stats_file(path: str) -> Tuple[List[List[str]], Dict[str, Any]]:
 
 def parse_tod_on_date(tod: str, date: datetime) -> datetime | None:
     s = str(tod).strip()
-    for fmt in ("%H:%M:%S.%f", "%H:%M:%S"):
-        try:
-            t = datetime.strptime(s, fmt)
-            return date.replace(hour=t.hour, minute=t.minute, second=t.second, microsecond=t.microsecond)
-        except Exception:
-            continue
-    return None
+    try:
+        t = datetime.strptime(s, "%H:%M:%S.%f")
+        return date.replace(hour=t.hour, minute=t.minute, second=t.second, microsecond=t.microsecond)
+    except Exception:
+        return None
 

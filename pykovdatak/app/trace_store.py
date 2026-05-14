@@ -2,24 +2,14 @@ from __future__ import annotations
 
 import json
 import logging
-import os
-import re
 import struct
 import time
-import unicodedata
 from pathlib import Path
-from typing import List, Optional, Dict, Any, Set
+from typing import List, Optional, Dict, Any
 
 from .mouse_tracker import MousePoint
 
 logger = logging.getLogger(__name__)
-
-# KovaaK's stats filenames embed a timestamp like 2026.03.26-21.27.37
-_TS_RE = re.compile(r"\d{4}\.\d{2}\.\d{2}-\d{2}\.\d{2}\.\d{2}")
-
-
-def _norm_stem(s: str) -> str:
-    return unicodedata.normalize("NFKC", (s or "").strip())
 
 
 class TraceStore:
@@ -32,9 +22,6 @@ class TraceStore:
         self._stems_cache: Optional[Set[str]] = None
         # Cache for resolved trace IDs: file_name -> trace_id
         self._resolved_cache: Dict[str, Optional[str]] = {}
-
-    def _trace_json_path(self, trace_id: str) -> Path:
-        return self.base_dir / f"{trace_id}.json"
 
     def _trace_bin_path(self, trace_id: str) -> Path:
         return self.base_dir / f"{trace_id}.trace"
@@ -54,8 +41,7 @@ class TraceStore:
         return safe
 
     def trace_path(self, trace_id: str) -> Path:
-        # Default path for new traces created by pykovdatak
-        return self._trace_json_path(trace_id)
+        return self._trace_bin_path(trace_id)
 
     def trace_id_for_stats_file(self, original_file_name: str) -> str:
         return self._to_trace_base_name(original_file_name)
@@ -86,90 +72,21 @@ class TraceStore:
         return stems
 
     def resolve_trace_id_for_stats(self, original_file_name: str) -> Optional[str]:
-        """
-        Find an on-disk trace stem that corresponds to this Stats.csv filename.
-
-        1) Exact file match for canonical trace_id
-        2) Unicode-normalized / trimmed equality
-        3) Case-insensitive match on Windows (filesystem may be case-preserving)
-        4) Match by embedded timestamp YYYY.MM.DD-HH.MM.SS when unique
-        """
-        # Use cache for repeated lookups
         if original_file_name in self._resolved_cache:
             return self._resolved_cache[original_file_name]
 
         primary = self._to_trace_base_name(original_file_name)
-        if self.exists(primary):
+        if self._trace_bin_path(primary).exists():
             self._resolved_cache[original_file_name] = primary
             return primary
 
-        stems = self._list_trace_stems()
-        if not stems:
-            self._resolved_cache[original_file_name] = None
-            return None
-
-        np = _norm_stem(primary)
-        # Normalized equality
-        for s in stems:
-            if _norm_stem(s) == np:
-                self._resolved_cache[original_file_name] = s
-                return s
-        # Windows: case-insensitive
-        if os.name == "nt":
-            npl = np.lower()
-            for s in stems:
-                if _norm_stem(s).lower() == npl:
-                    self._resolved_cache[original_file_name] = s
-                    return s
-
-        m = _TS_RE.search(primary)
-        if m:
-            ts = m.group(0)
-            cands = [s for s in stems if ts in s]
-            if len(cands) == 1:
-                self._resolved_cache[original_file_name] = cands[0]
-                return cands[0]
-            if len(cands) > 1:
-                # Prefer same leading title before " - Challenge"
-                prefix = primary.split(" - Challenge")[0] if " - Challenge" in primary else primary
-                prefix_n = _norm_stem(prefix)
-                scored = []
-                for s in cands:
-                    sn = _norm_stem(s)
-                    score = 0
-                    if sn.startswith(prefix_n):
-                        score += 2
-                    if prefix_n in sn:
-                        score += 1
-                    scored.append((score, s))
-                scored.sort(key=lambda x: (-x[0], x[1]))
-                result = scored[0][1] if scored[0][0] > 0 else cands[0]
-                self._resolved_cache[original_file_name] = result
-                return result
         self._resolved_cache[original_file_name] = None
         return None
 
     def exists(self, trace_id: str) -> bool:
-        bin_path = self._trace_bin_path(trace_id)
-        json_path = self._trace_json_path(trace_id)
-        return bin_path.exists() or json_path.exists()
+        return self._trace_bin_path(trace_id).exists()
 
     def resolve_disk_trace_id(self, trace_id: str) -> str:
-        """Map a logical trace id to the on-disk stem (handles case / unicode differences)."""
-        if self.exists(trace_id):
-            return trace_id
-        stems = self._list_trace_stems()
-        if not stems:
-            return trace_id
-        nt = _norm_stem(trace_id)
-        for s in stems:
-            if _norm_stem(s) == nt:
-                return s
-        if os.name == "nt":
-            ntl = nt.lower()
-            for s in stems:
-                if _norm_stem(s).lower() == ntl:
-                    return s
         return trace_id
 
     def save(
@@ -272,10 +189,6 @@ class TraceStore:
 
         return points
 
-    def _load_json(self, trace_id: str) -> dict:
-        p = self._trace_json_path(trace_id)
-        return json.loads(p.read_text(encoding="utf-8"))
-
     def _load_trace_binary(self, trace_id: str) -> dict:
         """
         Read RefleK's .trace format (v1, v2 or v3).
@@ -335,11 +248,7 @@ class TraceStore:
 
     def load(self, trace_id: str) -> dict:
         logger.info(f"加载轨迹: {trace_id}")
-        # Prefer upstream binary format if present; fallback to json (pykovdatak or legacy)
         tid = self.resolve_disk_trace_id(trace_id)
-        if self._trace_bin_path(tid).exists():
-            logger.info(f"加载二进制轨迹文件: {tid}")
-            return self._load_trace_binary(tid)
-        logger.info(f"加载JSON轨迹文件: {tid}")
-        return self._load_json(tid)
+        logger.info(f"加载二进制轨迹文件: {tid}")
+        return self._load_trace_binary(tid)
 

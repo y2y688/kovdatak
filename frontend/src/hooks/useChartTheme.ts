@@ -64,13 +64,13 @@ function resolve(): ChartTheme {
   const textPrimary = getCssVar('--text-primary', FALLBACK.textPrimary)
   const textSecondary = getCssVar('--text-secondary', FALLBACK.textSecondary)
   const grid = getCssVar('--chart-grid', FALLBACK.grid)
-  const tooltipBg = getCssVar('--chart-tooltip-bg', getCssVar('--bg-tertiary', FALLBACK.tooltipBg))
+  const tooltipBg = getCssVar('--chart-tooltip-bg', FALLBACK.tooltipBg)
   const tooltipBorder = getCssVar('--chart-tooltip-border', FALLBACK.tooltipBorder)
 
-  const accent = getCssVar('--chart-accent', getCssVar('--accent-primary', FALLBACK.accent))
-  const success = getCssVar('--chart-success', getCssVar('--success', FALLBACK.success))
-  const warning = getCssVar('--chart-warning', getCssVar('--warning', FALLBACK.warning))
-  const danger = getCssVar('--chart-danger', getCssVar('--error', FALLBACK.danger))
+  const accent = getCssVar('--chart-accent', FALLBACK.accent)
+  const success = getCssVar('--chart-success', FALLBACK.success)
+  const warning = getCssVar('--chart-warning', FALLBACK.warning)
+  const danger = getCssVar('--chart-danger', FALLBACK.danger)
   const neutral = getCssVar('--chart-neutral', FALLBACK.neutral)
   const contrast = getCssVar('--chart-contrast', FALLBACK.contrast)
 
