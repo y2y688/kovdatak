@@ -46,20 +46,13 @@ KOVAAKS_PLAYER_PROGRESS_URL = (
     "?benchmarkId={benchmark_id}&steamId={steam_id}"
 )
 
-BENCHMARKS_DATA_URL = "https://raw.githubusercontent.com/ARm8-2/refleks/main/internal/benchmarks/benchmarks_data.json"
-
-
 def _read_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
 def _benchmarks_data_path() -> Path:
     # Bundled inside the exe (_internal/app/data/) or pykovdatak/app/data/ (dev).
-    bundled = (assets_root() / "app" / "data" / "default_benchmarks.json").resolve()
-    if bundled.exists():
-        return bundled
-    # Writable cache next to the exe / pykovdatak/.
-    return (data_root() / "data" / "default_benchmarks.json").resolve()
+    return (assets_root() / "app" / "data" / "default_benchmarks.json").resolve()
 
 
 def _initial_threshold_baseline_go(thresholds: List[float]) -> float:
@@ -201,15 +194,7 @@ class BenchmarksService:
     steam_id_override: str = ""
 
     def get_benchmarks(self) -> List[Dict[str, Any]]:
-        p = _benchmarks_data_path()
-        if not p.exists():
-            p.parent.mkdir(parents=True, exist_ok=True)
-            req = urllib.request.Request(BENCHMARKS_DATA_URL, headers={"User-Agent": "pykovdatak"})
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                body = resp.read().decode("utf-8", errors="replace")
-            # Cache locally so benchmarks work offline after first fetch.
-            p.write_text(body, encoding="utf-8")
-        return _read_json(p)
+        return _read_json(_benchmarks_data_path())
 
     def find_diff_by_benchmark_id(self, benchmark_id: int) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
         for b in self.get_benchmarks():
