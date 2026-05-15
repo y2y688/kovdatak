@@ -5,14 +5,12 @@ import { Loading } from '../../../components/shared/Loading';
 import { getScenarioTrace, getSettings, updateSettings } from '../../../lib/internal';
 import { decodeTraceData } from '../../../lib/trace';
 import { formatPct01, getDatePlayed } from '../../../lib/utils';
-import { useStore } from '../../../hooks/useStore';
 import type { MousePoint, ScenarioRecord } from '../../../types/ipc';
 
 type MouseTraceTabProps = { item: ScenarioRecord; items?: ScenarioRecord[] }
 
 export function PracticeHeatmap({ items }: { items?: ScenarioRecord[] }) {
-  const allScenarios = useStore(s => s.scenarios)
-  const sourceItems = items ?? allScenarios
+  const sourceItems = items ?? []
 
   const dayCounts = useMemo(() => {
     const m: Record<string, number> = {}

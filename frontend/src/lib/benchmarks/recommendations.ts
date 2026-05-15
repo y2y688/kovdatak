@@ -97,21 +97,6 @@ export function computeRecommendationScores(input: RecommendationInputs): Map<st
     if (!data) continue
     const { rank, score, thresholds } = data
 
-    // Old progress calculation (replaced by calculateProgress function)
-    // const maxRank = Math.max(1, thresholds.length - 1)
-    // const r = Math.max(0, Math.min(rank, maxRank))
-
-    // let p = 0
-    // if (r >= maxRank) {
-    //   p = 1
-    // } else {
-    //   const prev = thresholds[r] ?? 0
-    //   const next = thresholds[r + 1] ?? prev
-    //   const range = next - prev
-    //   const frac = range > 0 ? (score - prev) / range : 0
-    //   p = (r + Math.max(0, Math.min(1, frac))) / maxRank
-    // }
-
     const p = calculateProgress(rank, score, thresholds)
 
     progressMap.set(name, p)

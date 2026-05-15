@@ -207,6 +207,8 @@ class StatsPipeline:
                     )
                 has_trace = True
         # No live capture available (e.g. after restart). Check if persisted data exists.
+        # resolved is from the resolve cache — if it missed but a trace was just written
+        # (e.g. by another process), the direct exists() check catches it.
         if not has_trace and resolved:
             has_trace = True
         elif not has_trace and self.traces.exists(canonical):

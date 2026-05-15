@@ -16,9 +16,6 @@ import { CreateBenchmarkModal } from '../../components/benchmarks/CreateBenchmar
 function useBenchmarkList(items: BenchmarkListItem[], favorites: string[]) {
   const [query, setQuery] = usePageState<string>('explore:query', '')
   const [showFavOnly, setShowFavOnly] = usePageState<boolean>('explore:showFavOnly', false)
-  const sortBy: 'abbr' = 'abbr'
-  const groupBy: 'category' = 'category'
-
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     let list = items
@@ -48,7 +45,7 @@ function useBenchmarkList(items: BenchmarkListItem[], favorites: string[]) {
       g[key].push(item)
     }
     return g
-  }, [filtered, groupBy])
+  }, [filtered])
 
   const groupKeys = useMemo(() => Object.keys(groups).sort((a, b) => {
     if (a === 'All') return -1
@@ -68,7 +65,6 @@ function useBenchmarkList(items: BenchmarkListItem[], favorites: string[]) {
   return {
     query, setQuery,
     showFavOnly, setShowFavOnly,
-    sortBy,
     groups, groupKeys,
     hasResults: filtered.length > 0,
     totalCount: items.length
@@ -87,7 +83,6 @@ export function BenchmarksExplore({ items, favorites, loading, onToggleFav, onOp
   const {
     query, setQuery,
     showFavOnly, setShowFavOnly,
-    sortBy,
     groups, groupKeys,
     hasResults
   } = useBenchmarkList(items, favorites)

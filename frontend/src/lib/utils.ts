@@ -34,7 +34,7 @@ export function formatDuration(ms: number): string {
   const parts: string[] = []
   if (h) parts.push(`${h}h`)
   if (m) parts.push(`${m}m`)
-  if (!h && (s || parts.length === 0)) parts.push(`${s}s`)
+  if (s || parts.length === 0) parts.push(`${s}s`)
   return parts.join(' ')
 }
 

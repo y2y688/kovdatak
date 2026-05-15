@@ -122,9 +122,6 @@ class TraceStore:
     def exists(self, trace_id: str) -> bool:
         return self._trace_bin_path(trace_id).exists()
 
-    def resolve_disk_trace_id(self, trace_id: str) -> str:
-        return trace_id
-
     def save(
         self,
         trace_id: str,
@@ -290,7 +287,5 @@ class TraceStore:
 
     def load(self, trace_id: str) -> dict:
         logger.info(f"加载轨迹: {trace_id}")
-        tid = self.resolve_disk_trace_id(trace_id)
-        logger.info(f"加载二进制轨迹文件: {tid}")
-        return self._load_trace_binary(tid)
+        return self._load_trace_binary(trace_id)
 

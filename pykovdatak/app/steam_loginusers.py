@@ -67,7 +67,7 @@ def _tokenize_vdf(s: str) -> List[_Tok]:
     return toks
 
 
-def _trim_ws(s: str) -> str:
+def _clean_token(s: str) -> str:
     return (s or "").strip().strip('"')
 
 
@@ -94,7 +94,7 @@ def parse_most_recent_user(loginusers_path: str) -> Tuple[str, str]:
         t = next_tok()
         if t is None:
             raise ValueError("'users' section not found")
-        if t.kind == "str" and _trim_ws(t.val).lower() == "users":
+        if t.kind == "str" and _clean_token(t.val).lower() == "users":
             break
 
     t = next_tok()
@@ -110,7 +110,7 @@ def parse_most_recent_user(loginusers_path: str) -> Tuple[str, str]:
             break
         if key.kind != "str":
             continue
-        steam_id = _trim_ws(key.val)
+        steam_id = _clean_token(key.val)
         t = next_tok()
         if t is None or t.kind != "brace" or t.val != "{":
             continue
@@ -128,7 +128,7 @@ def parse_most_recent_user(loginusers_path: str) -> Tuple[str, str]:
                 elif t2.val == "}":
                     depth -= 1
                 continue
-            kname = _trim_ws(t2.val)
+            kname = _clean_token(t2.val)
             vtok = next_tok()
             if vtok is None:
                 break
@@ -138,7 +138,7 @@ def parse_most_recent_user(loginusers_path: str) -> Tuple[str, str]:
                 elif vtok.val == "}":
                     depth -= 1
                 continue
-            v = _trim_ws(vtok.val)
+            v = _clean_token(vtok.val)
             if kname.lower() == "mostrecent":
                 found_mr = True
                 mr_val = v

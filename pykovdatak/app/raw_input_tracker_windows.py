@@ -264,23 +264,6 @@ class RawInputMouseTracker:
     def get_range(self, start_t: float, end_t: float):
         return self._buffer.get_range(start_t, end_t)
 
-    def _set_button_bit(self, bit: int, pressed: bool) -> bool:
-        before = self._buttons
-        if pressed:
-            self._buttons |= bit
-        else:
-            self._buttons &= ~bit
-        return self._buttons != before
-
-    def _handle_flags(self, flags: int) -> bool:
-        changed = False
-        # Match upstream Go behavior: only track left button changes.
-        if flags & RI_MOUSE_LEFT_BUTTON_DOWN:
-            changed |= self._set_button_bit(1, True)
-        if flags & RI_MOUSE_LEFT_BUTTON_UP:
-            changed |= self._set_button_bit(1, False)
-        return changed
-
     def _append_point(self, ts: float) -> None:
         x = int(self._vx)
         y = int(self._vy)
