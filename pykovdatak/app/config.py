@@ -143,7 +143,10 @@ def load_or_create_config() -> AppConfig:
         if k in data:
             setattr(cfg, k, data[k])
 
-    # 检查绝对路径是否有效，无效则重置为默认相对路径
+    # 检查绝对路径是否有效，无效则重置（防止开发机路径泄漏到其他电脑）
+    if cfg.steam_install_dir and not Path(cfg.steam_install_dir).exists():
+        logger.warning(f"Steam安装目录不存在: {cfg.steam_install_dir}，已重置")
+        cfg.steam_install_dir = ""
     if cfg.traces_dir and Path(cfg.traces_dir).is_absolute():
         if not _is_valid_writable_path(cfg.traces_dir):
             logger.warning(f"轨迹目录无效或不可访问: {cfg.traces_dir}，重置为默认值")

@@ -37,13 +37,18 @@ hiddenimports = [
     'psutil._psutil_windows',
 ]
 
-# 添加 Python DLL
+# Python DLL + only the system DLLs needed at runtime (skip test/tkinter bloat)
 import sys
 python_home = sys.prefix
+dlls_src = os.path.join(python_home, 'DLLs')
 binaries = [
     (os.path.join(python_home, 'python313.dll'), '.'),
-    (os.path.join(python_home, 'DLLs'), 'DLLs'),
 ]
+if os.path.isdir(dlls_src):
+    for f in os.listdir(dlls_src):
+        if f.startswith('_test') or f.startswith('_tkinter') or f in ('tcl86t.dll','tk86t.dll','py.ico','pyc.ico','pyd.ico','python_lib.cat'):
+            continue
+        binaries.append((os.path.join(dlls_src, f), 'DLLs'))
 
 # 排除不需要的模块以减少体积
 excludes = [
