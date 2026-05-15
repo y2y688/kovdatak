@@ -204,11 +204,9 @@ export async function getScenarioTrace(fileOrTraceId: string): Promise<string> {
   const d = await apiJSON(`/api/traces/${encodeURIComponent(base)}`)
   const pts = Array.isArray(d?.points) ? d.points : []
   const count = pts.length >>> 0
-  // 检测是否有任何点包含 hit 字段为 true，使用 v2 格式（21字节）
-  // 后端返回 ts 字段（秒），不是 t
   const hasHit = pts.some((p: any) => p.hit === true)
-  const hasAcc = pts.some((p: any) => p.acc !== undefined)
-  const pointSize = hasAcc ? 25 : (hasHit ? 21 : 20)
+  const hasSpeed = pts.some((p: any) => p.speed !== undefined)
+  const pointSize = hasSpeed ? 25 : (hasHit ? 21 : 20)
   const buf = new ArrayBuffer(4 + count * pointSize)
   const view = new DataView(buf)
   let off = 0
@@ -227,9 +225,9 @@ export async function getScenarioTrace(fileOrTraceId: string): Promise<string> {
     if (pointSize >= 21) {
       view.setUint8(off + 20, p.hit ? 1 : 0)
     }
-    // v3 格式支持加速度
+    // v3 格式支持速度
     if (pointSize >= 25) {
-      view.setFloat32(off + 21, Number(p.acc) || 0, true)
+      view.setFloat32(off + 21, Number(p.speed) || 0, true)
     }
     off += pointSize
   }

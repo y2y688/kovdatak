@@ -1,28 +1,6 @@
 import type { MousePoint } from '../types/ipc';
 import { clamp, formatMmSs } from './utils';
 
-// Quickselect-based median (O(n) average) to avoid sorting every frame
-function quickSelectMedian(arr: number[]): number | undefined {
-  const n = arr.length
-  if (n === 0) return undefined
-  if (n === 1) return arr[0]
-  const target = Math.floor(n / 2)
-  const a = arr.slice()
-  let lo = 0, hi = n - 1
-  while (lo < hi) {
-    const pivot = a[hi]
-    let i = lo
-    for (let j = lo; j < hi; j++) {
-      if (a[j] <= pivot) { const t = a[i]; a[i] = a[j]; a[j] = t; i++ }
-    }
-    const t = a[i]; a[i] = a[hi]; a[hi] = t
-    if (i === target) break
-    if (i < target) lo = i + 1
-    else hi = i - 1
-  }
-  return a[target]
-}
-
 export type Highlight = { startTs?: number; endTs?: number; color?: string }
 export type Marker = { ts: number; color?: string; radius?: number; type?: 'circle' | 'cross' }
 
@@ -30,13 +8,6 @@ export function formatTime(ms: number): string {
   if (!Number.isFinite(ms) || ms <= 0) return '0:00.00'
   const s = ms / 1000
   return formatMmSs(s, 2)
-}
-
-export function lerpRGB(a: [number, number, number], b: [number, number, number], t: number): [number, number, number] {
-  const r = Math.round(a[0] + (b[0] - a[0]) * t)
-  const g = Math.round(a[1] + (b[1] - a[1]) * t)
-  const b2 = Math.round(a[2] + (b[2] - a[2]) * t)
-  return [r, g, b2]
 }
 
 // HSL转RGB
@@ -49,45 +20,77 @@ function hslToRgb(h: number, s: number, l: number): [number, number, number] {
   return [Math.round(f(0) * 255), Math.round(f(8) * 255), Math.round(f(4) * 255)]
 }
 
-// 根据速度获取颜色：低速=绿色(120°)，高速=红色(0°)
-export function getAccelerationColor(t: number): [number, number, number] {
-  // t: 0-1，速度从低到高
-  // 低速：绿色 H=120°, S=70%, L=50%
-  // 高加速度：红色 H=0°, S=80%, L=50°
-  const h = 120 - t * 120  // 120° -> 0°
-  const s = 70 + t * 10    // 70% -> 80%
-  return hslToRgb(h, s, 50)
+// 根据速度和加速度获取颜色
+// 色相：速度慢→绿(120°)，速度快→红(0°)
+// 彩度：高加速度（急停/启动）→色彩更鲜艳
+// 明度：加速→偏亮，减速→偏暗
+export function getTraceColor(
+  speed: number, accel: number,
+  speedP90: number, accelThreshold: number
+): [number, number, number] {
+  const speedT = clamp(speed / speedP90, 0, 1)
+  const accelMag = Math.abs(accel)
+  const accelT = clamp(accelMag / accelThreshold, 0, 1)
+  const accelSign = Math.sign(accel)
+
+  const h = 120 - speedT * 120       // 120°→0°
+  const s = 65 + 20 * accelT          // 加速段色彩更饱和
+  const l = 48 + 8 * accelSign * accelT  // 加速偏亮，减速偏暗
+  return hslToRgb(h, s, l)
 }
 
-// 计算两点之间的距离（像素）
-function distance(x1: number, y1: number, x2: number, y2: number): number {
-  return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
-}
+// 计算速度（支持预计算+EMA兜底）和加速度
+export function computeSpeeds(points: MousePoint[], startIdx: number, endIdx: number): {
+  speeds: Float64Array; accels: Float64Array; maxSpeed: number; speedP90: number
+} {
+  const n = endIdx - startIdx
+  const speeds = new Float64Array(n)
+  const accels = new Float64Array(n)
+  if (n < 2) return { speeds, accels, maxSpeed: 0, speedP90: 1 }
 
-// 计算轨迹的速度数组，并返回最大速度用于归一化
-export function calculateSpeeds(points: MousePoint[], startIdx: number, endIdx: number): { speeds: number[], maxV: number } {
-  const speeds: number[] = []
+  // 检查是否有预计算速度（v3 格式）
+  const hasPrecomputed = points[startIdx]?.speed !== undefined
 
-  // 实时计算速度
-  for (let i = startIdx; i < endIdx - 1; i++) {
-    const p1 = points[i]
-    const p2 = points[i + 1]
-    const dt = (p2.ts - p1.ts) / 1000  // 毫秒转秒
-
-    if (dt <= 0) {
-      speeds.push(0)
-      continue
+  if (hasPrecomputed) {
+    for (let i = 0; i < n; i++) speeds[i] = points[startIdx + i].speed ?? 0
+  } else {
+    // 原始两点差分
+    const raw = new Float64Array(n)
+    for (let i = 1; i < n; i++) {
+      const p1 = points[startIdx + i - 1], p2 = points[startIdx + i]
+      const dt = (p2.ts - p1.ts) / 1000
+      if (dt > 0) {
+        const dx = p2.x - p1.x, dy = p2.y - p1.y
+        raw[i] = Math.sqrt(dx * dx + dy * dy) / dt
+      }
     }
+    raw[0] = raw[1]
 
-    const d = distance(p1.x, p1.y, p2.x, p2.y)
-    const v = d / dt  // 像素/秒
-    speeds.push(v)
+    // 前向-后向 EMA 平滑（零相位）
+    const alpha = 0.3
+    const fwd = new Float64Array(n)
+    fwd[0] = raw[0]
+    for (let i = 1; i < n; i++) fwd[i] = alpha * raw[i] + (1 - alpha) * fwd[i - 1]
+    speeds[n - 1] = fwd[n - 1]
+    for (let i = n - 2; i >= 0; i--) speeds[i] = alpha * fwd[i] + (1 - alpha) * speeds[i + 1]
   }
-  // 最后一个点继承前一个速度
-  speeds.push(speeds.length > 0 ? speeds[speeds.length - 1] : 0)
 
-  const maxV = Math.max(...speeds, 1)  // 避免除零
-  return { speeds, maxV }
+  // 加速度（中心差分）
+  for (let i = 1; i < n - 1; i++) {
+    const dt = ((points[startIdx + i + 1].ts - points[startIdx + i - 1].ts) / 1000)
+    if (dt > 0) accels[i] = (speeds[i + 1] - speeds[i - 1]) / dt
+  }
+  accels[0] = accels[1]; accels[n - 1] = accels[n - 2]
+
+  let maxSpeed = 0
+  for (let i = 0; i < n; i++) if (speeds[i] > maxSpeed) maxSpeed = speeds[i]
+  maxSpeed = Math.max(maxSpeed, 1)
+
+  // 90 百分位数速度，更稳定的归一化锚点
+  const sorted = Array.from(speeds.slice()).sort((a, b) => a - b)
+  const speedP90 = sorted[Math.floor((n - 1) * 0.9)] || 1
+
+  return { speeds, accels, maxSpeed, speedP90 }
 }
 
 export function findPointIndex(points: MousePoint[], targetMs: number): number {
@@ -163,25 +166,17 @@ export function renderTrace(
     let drawnCount = 0
     const pad = 50 // pixel padding for culling
 
-    // 计算速度用于颜色映射
-    const { speeds, maxV } = calculateSpeeds(points, startIdx, endIdx)
+    // 计算速度和加速度
+    const { speeds, accels, maxSpeed, speedP90 } = computeSpeeds(points, startIdx, endIdx)
+    const accelThreshold = 50000  // 像素/秒²，区分 flick 和跟枪的阈值
 
-    // 使用中位数作为基准，让颜色变化更明显
-    const median = quickSelectMedian(speeds) ?? 200
-    // 红色阈值设为中位数的2倍
-    const threshold = Math.max(median * 2, 200)
-
-    // 根据速度获取颜色（内部函数）
+    // 根据速度和加速度获取颜色
     const getColorForSegment = (segIdx: number): [number, number, number] => {
-      // segIdx 对应的是线段索引，从 startIdx 开始
-      const speedIdx = segIdx - startIdx
-      if (speedIdx < 0 || speedIdx >= speeds.length) {
-        // 调用导出函数，默认低速=绿色
-        return getAccelerationColor(0)
+      const idx = segIdx - startIdx
+      if (idx < 0 || idx >= speeds.length) {
+        return getTraceColor(0, 0, speedP90, accelThreshold)
       }
-      // 速度小于阈值时为绿色，超过阈值才逐渐变红
-      const t = clamp((speeds[speedIdx] - median) / (threshold - median), 0, 1)
-      return getAccelerationColor(t)
+      return getTraceColor(speeds[idx], accels[idx], speedP90, accelThreshold)
     }
 
     for (let i = startIdx + step; i < endIdx; i += step) {
@@ -249,9 +244,10 @@ export function renderTrace(
           alpha = 0.15 + 0.85 * Math.pow(ageT, 1.1)
         }
         // 使用速度颜色
-        const lastSpeedIdx = speeds.length - 1
-        const lastT = lastSpeedIdx >= 0 ? clamp(speeds[lastSpeedIdx] / maxV, 0, 1) : 0
-        const [r, g, b] = getAccelerationColor(lastT)
+        const lastIdx = speeds.length - 1
+        const [r, g, b] = lastIdx >= 0
+          ? getTraceColor(speeds[lastIdx], accels[lastIdx], speedP90, accelThreshold)
+          : [76, 175, 80]
         ctx.strokeStyle = `rgba(${r},${g},${b},${alpha})`
         ctx.beginPath()
         ctx.moveTo(x1, y1)

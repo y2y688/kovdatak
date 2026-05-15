@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import struct
 import time
 from pathlib import Path
@@ -10,6 +11,41 @@ from typing import List, Optional, Dict, Any
 from .mouse_tracker import MousePoint
 
 logger = logging.getLogger(__name__)
+
+
+def _compute_smoothed_speeds(points: List[MousePoint]) -> List[float]:
+    """
+    计算平滑速度（像素/秒），使用前向-后向 EMA 零相位滤波。
+
+    1. 原始速度：相邻点差分 v = sqrt(dx² + dy²) / dt
+    2. 前向 EMA：s_f[i] = alpha * raw[i] + (1-alpha) * s_f[i-1]
+    3. 后向 EMA：s[i] = alpha * s_f[i] + (1-alpha) * s[i+1]
+    """
+    n = len(points)
+    if n < 2:
+        return [0.0] * n
+
+    raw = [0.0] * n
+    for i in range(1, n):
+        dt = points[i].t - points[i - 1].t
+        if dt > 0:
+            dx = points[i].x - points[i - 1].x
+            dy = points[i].y - points[i - 1].y
+            raw[i] = math.sqrt(dx * dx + dy * dy) / dt
+    raw[0] = raw[1] if n > 1 else 0.0
+
+    alpha = 0.3
+    fwd = [0.0] * n
+    fwd[0] = raw[0]
+    for i in range(1, n):
+        fwd[i] = alpha * raw[i] + (1.0 - alpha) * fwd[i - 1]
+
+    bwd = [0.0] * n
+    bwd[n - 1] = fwd[n - 1]
+    for i in range(n - 2, -1, -1):
+        bwd[i] = alpha * fwd[i] + (1.0 - alpha) * bwd[i + 1]
+
+    return bwd
 
 
 class TraceStore:
@@ -111,6 +147,9 @@ class TraceStore:
         if kill_events:
             points = self._mark_hits(points, kill_events)
 
+        # 计算平滑速度
+        speeds = _compute_smoothed_speeds(points)
+
         meta_obj = {
             "fileName": (meta or {}).get("fileName", ""),
             "scenarioName": (meta or {}).get("scenarioName", ""),
@@ -121,7 +160,7 @@ class TraceStore:
         # Header: Magic + Version + Flags + MetaLen + MetaJSON
         out = bytearray()
         out += b"RTRC"
-        out += bytes([2])  # Version2 (支持 hit 字段)
+        out += bytes([3])  # Version3 (支持 hit + speed 字段)
         out += bytes([0])  # Flags
         out += struct.pack("<I", len(meta_bytes))
         out += meta_bytes
@@ -129,15 +168,15 @@ class TraceStore:
         # Points count
         out += struct.pack("<I", len(points))
 
-        # Points: TS(uint64 nano), X(uint32), Y(uint32), Buttons(uint32), Hit(uint8)
-        for pt in points:
+        # Points: TS(uint64 nano), X(uint32), Y(uint32), Buttons(uint32), Hit(uint8), Speed(float32)
+        for i, pt in enumerate(points):
             ts_millis = int(round(float(pt.t) * 1000.0))
             ts_nano = ts_millis * 1_000_000
             x_u = int(pt.x) & 0xFFFFFFFF
             y_u = int(pt.y) & 0xFFFFFFFF
             buttons_u = int(getattr(pt, "buttons", 0)) & 0xFFFFFFFF
             hit_u = 1 if getattr(pt, "hit", False) else 0
-            out += struct.pack("<QIIIB", ts_nano, x_u, y_u, buttons_u, hit_u)
+            out += struct.pack("<QIIIBf", ts_nano, x_u, y_u, buttons_u, hit_u, float(speeds[i]))
 
         p = self._trace_bin_path(trace_id)
         logger.info(f"写入轨迹文件: {p}")
@@ -242,6 +281,9 @@ class TraceStore:
             # v2 格式支持 hit 字段
             if ver >= 2 and len(chunk) >= 21:
                 point["hit"] = chunk[20] == 1
+            # v3 格式支持 speed 字段
+            if ver >= 3 and len(chunk) >= 25:
+                point["speed"] = struct.unpack("<f", chunk[21:25])[0]
             points.append(point)
 
         return {"version": ver, "trace_id": trace_id, "meta": meta, "points": points}

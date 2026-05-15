@@ -40,13 +40,14 @@ export function decodeTraceData(base64: string): MousePoint[] {
       // Convert nano to milliseconds
       const ms = Number(tsNano / BigInt(1000000));
 
-      points.push({
-        ts: ms,
-        x,
-        y,
-        buttons,
-        hit,
-      });
+      const pt: MousePoint = { ts: ms, x, y, buttons, hit };
+
+      // v3 (25 bytes): speed float32 at byte 21
+      if (pointSize >= 25) {
+        pt.speed = view.getFloat32(offset + 21, true);
+      }
+
+      points.push(pt);
 
       offset += pointSize;
     }

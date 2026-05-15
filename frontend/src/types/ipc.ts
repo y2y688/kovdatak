@@ -4,6 +4,8 @@ export type MousePoint = {
   y: number
   buttons?: number
   hit?: boolean  // 是否击中目标
+  speed?: number  // 平滑速度（像素/秒），v3 格式预计算
+  accel?: number  // 加速度（像素/秒²），前端从 speed 计算
 }
 
 export interface ScenarioRecord {
