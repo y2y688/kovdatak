@@ -9,6 +9,8 @@ import type { MousePoint, ScenarioRecord } from '../../../types/ipc';
 
 type MouseTraceTabProps = { item: ScenarioRecord; items?: ScenarioRecord[] }
 
+const WEEKDAY_LABELS = ['一', '二', '三', '四', '五', '六', '日']
+
 export function PracticeHeatmap({ items }: { items?: ScenarioRecord[] }) {
   const sourceItems = items ?? []
 
@@ -25,6 +27,8 @@ export function PracticeHeatmap({ items }: { items?: ScenarioRecord[] }) {
 
   const maxCount = useMemo(() => Math.max(...Object.values(dayCounts), 1), [dayCounts])
 
+  const totalDays = useMemo(() => Object.keys(dayCounts).length, [dayCounts])
+
   const today = new Date()
   const [year, setYear] = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth())
@@ -38,28 +42,30 @@ export function PracticeHeatmap({ items }: { items?: ScenarioRecord[] }) {
     else setMonth(m => m + 1)
   }
 
-  const dayLabels: string[] = []
-
-  // Build a flat grid: 1-7, 8-14, 15-21, 22-28, 29-35, 36-42, trimmed to daysInMonth
+  // Build calendar grid aligned to actual weekdays
   const grid = useMemo(() => {
     const daysInMonth = new Date(year, month + 1, 0).getDate()
+    // getDay(): 0=Sun, 1=Mon, ... 6=Sat → shift so Monday=0
+    const firstDay = (new Date(year, month, 1).getDay() + 6) % 7
     const weeks: { day: number; count: number; date: string }[][] = []
     let d = 1
-    for (let r = 0; r < 6; r++) {
+    let row = 0
+    while (d <= daysInMonth) {
       const week: { day: number; count: number; date: string }[] = []
       for (let c = 0; c < 7; c++) {
-        if (d <= daysInMonth) {
+        if ((row === 0 && c < firstDay) || d > daysInMonth) {
+          week.push({ day: 0, count: -1, date: '' })
+        } else {
           const yyyy = `${year}`
           const mm = String(month + 1).padStart(2, '0')
           const dd = String(d).padStart(2, '0')
           const dateStr = `${yyyy}-${mm}-${dd}`
           week.push({ day: d, count: dayCounts[dateStr] || 0, date: dateStr })
           d++
-        } else {
-          week.push({ day: 0, count: -1, date: '' })
         }
       }
       weeks.push(week)
+      row++
     }
     return weeks
   }, [year, month, dayCounts])
@@ -67,43 +73,89 @@ export function PracticeHeatmap({ items }: { items?: ScenarioRecord[] }) {
   const canPrev = year > 2020 || (year === 2020 && month > 0)
   const canNext = year < today.getFullYear() || (year === today.getFullYear() && month < today.getMonth())
 
+  // Compute opacity from count (linear quartile scale)
+  const cellOpacity = (count: number): number => {
+    if (count <= 0 || maxCount <= 0) return 0
+    return Math.max(0.08, Math.min(1, count / maxCount))
+  }
+
   return (
-    <div className="p-3 rounded border border-primary bg-surface-2 text-sm w-80 flex flex-col">
+    <div className="p-3 rounded border border-primary bg-surface-2 text-sm flex flex-col">
+      {/* Header */}
       <div className="flex items-center justify-between mb-2 shrink-0">
         <span className="text-sm font-medium text-primary">练习热点图</span>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2" role="group" aria-label="月份切换">
           <button
             onClick={prevMonth}
             disabled={!canPrev}
-            className="px-2 py-0.5 rounded border border-primary text-xs text-primary hover:bg-surface-3 disabled:opacity-30 disabled:cursor-not-allowed"
-          >‹</button>
-          <span className="text-sm text-primary font-medium w-20 text-center">{year}年{month + 1}月</span>
+            aria-label="上一个月"
+            className="px-2 py-0.5 rounded border border-primary text-xs text-primary hover:bg-surface-3 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          >◀</button>
+          <span className="text-sm text-primary font-medium w-20 text-center select-none" aria-live="polite">{year}年{month + 1}月</span>
           <button
             onClick={nextMonth}
             disabled={!canNext}
-            className="px-2 py-0.5 rounded border border-primary text-xs text-primary hover:bg-surface-3 disabled:opacity-30 disabled:cursor-not-allowed"
-          >›</button>
+            aria-label="下一个月"
+            className="px-2 py-0.5 rounded border border-primary text-xs text-primary hover:bg-surface-3 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          >▶</button>
         </div>
       </div>
-      <div className="flex-1 grid auto-rows-fr gap-[4px]">
-        {grid.map((week, wi) => (
-          <div key={wi} className="grid grid-cols-7 gap-[4px]">
-            {week.map((cell, di) => {
-              if (cell.day === 0) return <div key={di} />
-              const pct = cell.count > 0 ? Math.max(0.08, Math.log(cell.count + 1) / Math.log(maxCount + 1)) : 0
-              return (
-                <div
-                  key={di}
-                  className={`flex items-center justify-center rounded-md text-sm font-medium ${cell.count > 0 ? 'text-primary-foreground' : 'text-secondary/30'}`}
-                  style={{ backgroundColor: cell.count > 0 ? `color-mix(in srgb, var(--accent-primary) ${pct * 100}%, transparent)` : 'transparent' }}
-                  title={`${cell.date}: ${cell.count} 条记录`}
-                >
-                  {cell.day}
-                </div>
-              )
-            })}
+
+      {/* Weekday header row */}
+      <div className="grid grid-cols-7 gap-[3px] mb-[3px]">
+        {WEEKDAY_LABELS.map(label => (
+          <div key={label} className="text-center text-[10px] text-secondary/50 font-medium leading-none py-1">
+            {label}
           </div>
         ))}
+      </div>
+
+      {/* Calendar grid */}
+      {grid.length > 0 ? (
+        <div className="flex-1 grid auto-rows-fr gap-[3px]">
+          {grid.map((week, wi) => (
+            <div key={wi} className="grid grid-cols-7 gap-[3px]">
+              {week.map((cell, di) => {
+                if (cell.day === 0) return <div key={di} />
+                const opacity = cellOpacity(cell.count)
+                const isToday = cell.date === today.toISOString().slice(0, 10)
+                return (
+                  <div
+                    key={di}
+                    className="relative flex items-center justify-center rounded text-xs font-medium transition-colors hover:brightness-125 cursor-default"
+                    style={{
+                      backgroundColor: cell.count > 0
+                        ? `rgba(var(--accent-rgb, 59,130,246), ${opacity})`
+                        : 'transparent',
+                      outline: isToday ? '1px solid var(--text-primary)' : undefined,
+                      outlineOffset: -1,
+                    }}
+                    title={`${cell.date}: ${cell.count} 次练习`}
+                    aria-label={`${cell.date}，${cell.count} 次练习`}
+                  >
+                    {cell.day}
+                  </div>
+                )
+              })}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="py-6 text-center text-secondary/50 text-xs">暂无数据</div>
+      )}
+
+      {/* Legend + summary */}
+      <div className="flex items-center justify-between mt-2 pt-2 border-t border-primary/10 text-[10px] text-secondary/60">
+        <span>本月练习 {totalDays} 天</span>
+        <div className="flex items-center gap-1">
+          <span>少</span>
+          <div className="flex gap-[2px]">
+            {[0.15, 0.35, 0.55, 0.8, 1].map(a => (
+              <div key={a} className="w-3 h-3 rounded-sm" style={{ backgroundColor: `rgba(var(--accent-rgb, 59,130,246), ${a})` }} />
+            ))}
+          </div>
+          <span>多</span>
+        </div>
       </div>
     </div>
   )
