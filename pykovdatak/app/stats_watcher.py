@@ -33,6 +33,8 @@ def _derive_window(end_dt: datetime, stats: Dict[str, Any], events: List[List[st
         t = parse_tod_on_date(str(stats["Challenge Start"]), end_dt)
         if t is not None:
             start = t
+    if start > end_dt:
+        start = start - timedelta(days=1)
     return start, end_dt
 
 
